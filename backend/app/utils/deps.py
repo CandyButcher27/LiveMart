@@ -1,12 +1,13 @@
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import jwt, JWTError
 from app.utils.auth import SECRET_KEY, ALGORITHM
 from typing import Dict
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
+security = HTTPBearer()
 
-def get_current_user(token: str = Depends(oauth2_scheme)) -> Dict:
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Dict:
+    token = credentials.credentials
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         return {"email": payload.get("sub"), "role": payload.get("role")}
