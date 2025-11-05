@@ -1,22 +1,24 @@
-# backend/app/main.py
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.database import init_db
 
 app = FastAPI(title="LiveMART API")
 
-# Allow local dev frontend origin(s)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=["http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+@app.on_event("startup")
+def on_startup():
+    init_db()
+
 @app.get("/")
-def read_root():
+def root():
     return {"status": "ok", "project": "LiveMART"}
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("app.main:app", host="127.0.0.1", port=8000, reload=True)
+from app.routers import auth
+app.include_router(auth.router)
