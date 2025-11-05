@@ -11,3 +11,5 @@ class Product(SQLModel, table=True):
     price: float
     stock: int = 0
     retailer_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    product_type: str = Field(default="retail")  # can be "retail" or "wholesale"
+

@@ -38,3 +38,6 @@ app.include_router(orders.router)
 
 from app.routers import ws_tracking
 app.include_router(ws_tracking.router)
+
+from app.routers import wholesalers
+app.include_router(wholesalers.router)
