@@ -1,4 +1,3 @@
-# backend/app/models/user.py
 from sqlmodel import SQLModel, Field
 from typing import Optional
 
@@ -7,4 +6,6 @@ class User(SQLModel, table=True):
     name: str
     email: str
     password_hash: str
-    role: str  # "customer", "retailer", or "wholesaler"
+    role: str  # "customer", "retailer", "wholesaler"
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
