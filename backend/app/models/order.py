@@ -1,4 +1,4 @@
-from sqlmodel import SQLModel, Field, Relationship
+from sqlmodel import SQLModel, Field
 from typing import Optional
 from datetime import datetime
 
@@ -8,5 +8,7 @@ class Order(SQLModel, table=True):
     product_id: int
     quantity: int
     total_price: float
+    payment_mode: str = Field(default="online")  # "online" or "offline"
+    payment_status: str = Field(default="Pending")
     order_date: datetime = Field(default_factory=datetime.utcnow)
-    status: str = Field(default="Pending")
+    status: str = Field(default="Pending")  # "Pending", "Dispatched", "Delivered"
