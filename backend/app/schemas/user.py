@@ -1,18 +1,24 @@
-# backend/app/schemas/user.py
 from pydantic import BaseModel, EmailStr
+from typing import Optional
 
-class UserCreate(BaseModel):
+# 🧩 Base schema — shared attributes
+class UserBase(BaseModel):
     name: str
     email: EmailStr
+    role: str  # "customer", "retailer", "wholesaler"
+
+# ✅ Schema for creating a new user (includes password)
+class UserCreate(UserBase):
     password: str
-    role: str
 
-class UserRead(BaseModel):
+# ✅ Schema for reading user data (returned in responses)
+class UserRead(UserBase):
     id: int
-    name: str
-    email: str
-    role: str
 
+    class Config:
+        orm_mode = True
+
+# ✅ Schema for login
 class UserLogin(BaseModel):
     email: EmailStr
     password: str

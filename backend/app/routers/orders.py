@@ -1,45 +1,75 @@
-from fastapi import APIRouter, Depends, HTTPException
-from typing import List
-from app.schemas.order import OrderCreate, OrderRead
-from app.services.order_service import OrderService
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlmodel import Session, select
+
+from app.database import get_session
+from app.models.order import Order
+from app.models.product import Product
+from app.models.user import User
 from app.utils.deps import get_current_user
 
-from fastapi import BackgroundTasks
-from app.utils.notifications import send_email_background
+router = APIRouter()
 
-router = APIRouter(prefix="/orders", tags=["Orders"])
-
-@router.post("/", response_model=OrderRead)
-def place_order(order: OrderCreate, user=Depends(get_current_user)):
+# 🧩 Place a retail order (customer → retailer)
+@router.post("/")
+def place_order(
+    product_id: int,
+    quantity: int,
+    session: Session = Depends(get_session),
+    user=Depends(get_current_user)
+):
+    # Ensure only customers can place retail orders
     if user["role"] != "customer":
-        raise HTTPException(status_code=403, detail="Only customers can place orders")
-    return OrderService.place_order(
-        customer_email=user["email"],
-        product_id=order.product_id,
-        quantity=order.quantity,
-        payment_mode=order.payment_mode
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only customers can place retail orders."
+        )
+
+    # Fetch product
+    product = session.get(Product, product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    if product.product_type != "retail":
+        raise HTTPException(status_code=400, detail="Cannot order wholesale products")
+
+    # Check stock availability
+    if quantity > product.stock:
+        raise HTTPException(status_code=400, detail="Insufficient stock")
+
+    total_price = product.price * quantity
+
+    # Create order
+    new_order = Order(
+        customer_id=user["id"],
+        product_id=product_id,
+        quantity=quantity,
+        total_price=total_price
     )
 
+    # Update stock
+    product.stock -= quantity
 
-@router.patch("/{order_id}/status", response_model=OrderRead)
-def update_order_status(order_id: int, new_status: str, background_tasks: BackgroundTasks, user=Depends(get_current_user)):
-    if user["role"] != "retailer":
-        raise HTTPException(status_code=403, detail="Only retailers can update orders")
+    session.add(new_order)
+    session.add(product)
+    session.commit()
+    session.refresh(new_order)
 
-    updated_order = OrderService.update_order_status(order_id, new_status)
+    return {
+        "message": "Order placed successfully!",
+        "order_id": new_order.id,
+        "total_price": total_price,
+        "remaining_stock": product.stock
+    }
 
-    # Send mock email
-    subject = f"Order #{order_id} status updated to {new_status}"
-    message = f"Hello {updated_order.customer_email},\nYour order for product #{updated_order.product_id} is now '{new_status}'."
-    send_email_background(background_tasks, updated_order.customer_email, subject, message)
 
-    return updated_order
+# 🧩 View orders placed by a customer
+@router.get("/my-orders")
+def get_customer_orders(
+    session: Session = Depends(get_session),
+    user=Depends(get_current_user)
+):
+    if user["role"] != "customer":
+        raise HTTPException(status_code=403, detail="Only customers can view orders.")
 
-@router.get("/my-orders", response_model=List[OrderRead])
-def get_my_orders(user=Depends(get_current_user)):
-    if user["role"] == "customer":
-        return OrderService.get_orders_for_customer(user["email"])
-    elif user["role"] == "retailer":
-        return OrderService.get_all_orders()
-    else:
-        raise HTTPException(status_code=403, detail="Unauthorized role")
+    orders = session.exec(select(Order).where(Order.customer_id == user["id"])).all()
+    return orders

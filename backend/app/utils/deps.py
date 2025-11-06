@@ -1,24 +1,40 @@
-from jose import jwt, JWTError
 from fastapi import Depends, HTTPException, status
-from app.utils.auth import SECRET_KEY, ALGORITHM
-from app.models.user import User
+from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError
 from sqlmodel import Session, select
-from app.database import engine
 
-def get_current_user(token: str = Depends(oauth2_scheme)):
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email: str = payload.get("sub")
-        role: str = payload.get("role")
-        if email is None:
-            raise HTTPException(status_code=401, detail="Invalid credentials")
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
+from app.database import get_session
+from app.models.user import User
+from app.utils.auth import decode_access_token
 
-    with Session(engine) as session:
-        user = session.exec(select(User).where(User.email == email)).first()
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
+# Define OAuth2 scheme for token extraction
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
-        # ✅ Return both email and role
-        return {"email": user.email, "role": user.role, "id": user.id}
+# 🧩 Dependency to get the current user from JWT
+def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    session: Session = Depends(get_session)
+):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+    payload = decode_access_token(token)
+    if payload is None:
+        raise credentials_exception
+
+    email: str = payload.get("sub")
+    if email is None:
+        raise credentials_exception
+
+    user = session.exec(select(User).where(User.email == email)).first()
+    if not user:
+        raise credentials_exception
+
+    return {
+        "id": user.id,
+        "email": user.email,
+        "role": user.role
+    }
