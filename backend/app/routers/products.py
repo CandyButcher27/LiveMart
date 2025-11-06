@@ -4,20 +4,42 @@ from app.schemas.product import ProductCreate, ProductRead
 from app.services.product_service import ProductService
 from app.utils.deps import get_current_user
 from fastapi import Query
+from sqlmodel import Session, select
 
 router = APIRouter(prefix="/products", tags=["Products"])
 
 @router.post("/", response_model=ProductRead)
 def create_product(product: ProductCreate, user=Depends(get_current_user)):
-    if user["role"] != "retailer":
-        raise HTTPException(status_code=403, detail="Only retailers can add products")
+    role = user["role"]
+
+    # Allow both retailers and wholesalers to add products
+    if role not in ["retailer", "wholesaler"]:
+        raise HTTPException(status_code=403, detail="Only retailers or wholesalers can add products")
+
+    # Determine product type based on user role
+    product_type = "retail" if role == "retailer" else "wholesale"
+
+    # Get owner_id from logged-in user (we'll use email to fetch)
+    from app.models.user import User
+    from app.database import engine
+    from sqlmodel import Session, select
+
+    with Session(engine) as session:
+        db_user = session.exec(select(User).where(User.email == user["email"])).first()
+        if not db_user:
+            raise HTTPException(status_code=404, detail="User not found")
+        owner_id = db_user.id
+
     return ProductService.create_product(
-        product.name, product.description, product.price, product.stock, retailer_id=None
+        name=product.name,
+        description=product.description,
+        price=product.price,
+        stock=product.stock,
+        retailer_id=owner_id,
+        product_type=product_type
     )
 
-@router.get("/", response_model=List[ProductRead])
-def list_products():
-    return ProductService.get_all_products()
+
 
 # 🆕 Search and filter endpoint
 @router.get("/search", response_model=List[ProductRead])

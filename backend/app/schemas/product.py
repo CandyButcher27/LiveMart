@@ -13,4 +13,8 @@ class ProductRead(BaseModel):
     description: str
     price: float
     stock: int
-    retailer_id: Optional[int]
+    owner_id: Optional[int] = None
+    product_type: str
+
+    class Config:
+        orm_mode = True

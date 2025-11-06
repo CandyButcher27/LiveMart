@@ -15,14 +15,15 @@ GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
 class ProductService:
     @staticmethod
-    def create_product(name: str, description: str, price: float, stock: int, retailer_id: int):
+    def create_product(name: str, description: str, price: float, stock: int, retailer_id: int, product_type:str):
         with Session(engine) as session:
             product = Product(
                 name=name,
                 description=description,
                 price=price,
                 stock=stock,
-                retailer_id=retailer_id
+                owner_id=retailer_id,
+                product_type = product_type
             )
             session.add(product)
             session.commit()

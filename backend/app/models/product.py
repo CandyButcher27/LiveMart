@@ -1,8 +1,5 @@
-from sqlmodel import SQLModel, Field, Relationship
-from typing import Optional, TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from app.models.user import User
+from sqlmodel import SQLModel, Field
+from typing import Optional
 
 class Product(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -10,6 +7,5 @@ class Product(SQLModel, table=True):
     description: str
     price: float
     stock: int = 0
-    retailer_id: Optional[int] = Field(default=None, foreign_key="user.id")
-    product_type: str = Field(default="retail")  # can be "retail" or "wholesale"
-
+    owner_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    product_type: str = Field(default="retail")  # "retail" or "wholesale"
