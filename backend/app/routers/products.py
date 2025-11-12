@@ -46,7 +46,6 @@ def get_all_products(session: Session = Depends(get_session)):
     return products
 
 
-# 🧩 Get products based on user role
 @router.get("/", response_model=list[ProductRead])
 def get_products(
     session: Session = Depends(get_session),
@@ -56,15 +55,23 @@ def get_products(
 
     # Customer → see only retail products
     if role == "customer":
-        products = session.exec(select(Product).where(Product.product_type == "retail")).all()
+        products = session.exec(
+            select(Product).where(Product.product_type == "retail")
+        ).all()
 
-    # Retailer → see both retail and wholesale products
+    # Retailer → see wholesale products (posted by wholesalers)
     elif role == "retailer":
-        products = session.exec(select(Product)).all()
+        products = session.exec(
+            select(Product)
+            .where(Product.product_type == "wholesale")
+            .where(Product.owner_id != user["id"])  # not their own
+        ).all()
 
     # Wholesaler → see only their own products
     elif role == "wholesaler":
-        products = session.exec(select(Product).where(Product.owner_id == user["id"])).all()
+        products = session.exec(
+            select(Product).where(Product.owner_id == user["id"])
+        ).all()
 
     else:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid role")

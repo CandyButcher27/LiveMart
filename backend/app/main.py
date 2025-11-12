@@ -15,6 +15,7 @@ app = FastAPI(
 origins = [
     "http://localhost:3000",   # React local dev
     "http://127.0.0.1:3000",
+    "http://localhost:5173",   # Vite local dev
     "*"  # (Optional) Allow all origins — relax this in production
 ]
 
