@@ -1,4 +1,5 @@
 from typing import Optional
+from datetime import datetime
 from sqlmodel import SQLModel, Field
 
 class Order(SQLModel, table=True):
@@ -8,3 +9,5 @@ class Order(SQLModel, table=True):
     quantity: int
     total_price: float
     status: str = Field(default="Pending")  # "Pending", "Completed", "Cancelled"
+
+    created_at: datetime = Field(default_factory=datetime.utcnow)

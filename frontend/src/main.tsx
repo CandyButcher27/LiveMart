@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import App from "./App";
 import { AuthProvider } from "./context/AuthContext";
 import { CartProvider } from "./context/CartContext";
-import { WholesaleCartProvider } from "./context/WholesaleCartContext"; // 🆕 Import added
+import { WholesaleCartProvider } from "./context/WholeSaleCartContext"; // 🆕 Import added
 import GlobalToaster from "./components/ui/Toaster";
 import "./index.css";
 

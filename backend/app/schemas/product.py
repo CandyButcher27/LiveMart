@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 
 # 🧩 Base schema (shared across all product types)
@@ -7,6 +7,8 @@ class ProductBase(BaseModel):
     description: str
     price: float
     stock: Optional[int] = 0
+    category: Optional[str] = "other"
+    delivery_time: Optional[int] = Field(1, ge=1, le=7, description="Delivery time in days (1-7)")
 
 # ✅ Schema for creating a new product
 class ProductCreate(ProductBase):
@@ -17,6 +19,8 @@ class ProductRead(ProductBase):
     id: int
     owner_id: Optional[int]
     product_type: str
+    category: str
+    delivery_time: int = Field(1, ge=1, le=7)
 
     class Config:
         orm_mode = True

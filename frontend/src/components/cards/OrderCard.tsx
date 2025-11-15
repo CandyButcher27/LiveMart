@@ -1,6 +1,5 @@
 // src/components/cards/OrderCard.tsx
-import React from "react";
-import type { Order } from "../../api/orders";
+import type { Order } from "../../../types/orders";
 
 const statusColor = (status: string) => {
   switch (status) {
@@ -23,9 +22,14 @@ export default function OrderCard({ order }: { order: Order }) {
       <p className="text-slate-400 text-sm mt-2">
         Qty {order.quantity} · ₹{order.total_price.toFixed(2)}
       </p>
-      <p className="text-slate-500 text-xs mt-1">
-        {new Date(order.created_at).toLocaleString()}
-      </p>
+      <div className="flex justify-between items-center mt-2">
+        <p className="text-slate-500 text-xs">
+          {new Date(order.created_at).toLocaleString()}
+        </p>
+        <p className="text-blue-400 text-xs font-medium">
+          🚚 {order.category === 'electronics' ? '3-7' : (order.delivery_time || 1)} {order.category === 'electronics' ? 'days' : (order.delivery_time === 1 ? 'day' : 'days')} delivery
+        </p>
+      </div>
     </div>
   );
 }

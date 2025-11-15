@@ -29,6 +29,8 @@ def add_product(
         description=product_data.description,
         price=product_data.price,
         stock=product_data.stock,
+        category=product_data.category,
+        delivery_time=product_data.delivery_time,
         owner_id=user["id"],
         product_type=product_type
     )
@@ -75,5 +77,24 @@ def get_products(
 
     else:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid role")
+
+    return products
+
+@router.get("/my-products", response_model=list[ProductRead])
+def get_my_products(
+    session: Session = Depends(get_session),
+    user = Depends(get_current_user)
+):
+    if user["role"] != "retailer":
+        raise HTTPException(
+            status_code=403, 
+            detail="Only retailers can view their own products."
+        )
+
+    products = session.exec(
+        select(Product)
+        .where(Product.owner_id == user["id"])
+        .where(Product.product_type == "retail")
+    ).all()
 
     return products

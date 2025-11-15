@@ -2,14 +2,16 @@ from sqlmodel import Session, select
 from app.models.product import Product
 
 # 🧩 Add a new product
-def create_product(session: Session, name: str, description: str, price: float, stock: int, owner_id: int, product_type: str):
+def create_product(session: Session, name: str, description: str, price: float, stock: int, owner_id: int, product_type: str, category: str = "other", delivery_time: int = 1):
     product = Product(
         name=name,
         description=description,
         price=price,
         stock=stock,
+        category=category,
         owner_id=owner_id,
-        product_type=product_type
+        product_type=product_type,
+        delivery_time=delivery_time
     )
     session.add(product)
     session.commit()

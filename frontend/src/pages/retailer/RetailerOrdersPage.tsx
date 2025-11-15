@@ -1,7 +1,7 @@
 import React from "react";
-import { useQuery } from "@tanstack/react-query";
-import { fetchRetailerOrders } from "../../api/orders";
-import { showError } from "../../utils/toast";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { fetchRetailerOrders, updateOrderStatus } from "../../api/orders";
+import { showError, showSuccess } from "../../utils/toast";
 import Navbar from "../../components/layout/Navbar";
 import ProtectedRoute from "../../routes/ProtectedRoute";
 
@@ -12,11 +12,23 @@ function formatDate(iso?: string) {
 }
 
 const RetailerOrdersPage: React.FC = () => {
+  const queryClient = useQueryClient();
+
   const { data: orders = [], isLoading, isError } = useQuery({
     queryKey: ["retailerOrders"],
     queryFn: fetchRetailerOrders,
     onError: () => showError("Failed to fetch orders"),
   });
+
+  const handleStatusChange = async (orderId: number, newStatus: string) => {
+    try {
+      await updateOrderStatus(orderId, newStatus);
+      showSuccess("Order status updated!");
+      queryClient.invalidateQueries(["retailerOrders"]); // refresh table
+    } catch (err) {
+      showError("Failed to update status");
+    }
+  };
 
   return (
     <ProtectedRoute allowedRoles={["retailer"]}>
@@ -54,19 +66,21 @@ const RetailerOrdersPage: React.FC = () => {
                         <td className="px-4 py-3 text-sm">{o.customer_id}</td>
                         <td className="px-4 py-3 text-right text-sm">{o.quantity}</td>
                         <td className="px-4 py-3 text-right text-sm">₹{o.total_price}</td>
+
+                        {/* ⭐ STATUS DROPDOWN */}
                         <td className="px-4 py-3 text-sm">
-                          <span
-                            className={`px-2 py-1 rounded-full text-xs ${
-                              o.status === "Pending"
-                                ? "bg-yellow-700/40"
-                                : o.status === "Delivered"
-                                ? "bg-green-700/40"
-                                : "bg-slate-700/40"
-                            }`}
+                          <select
+                            value={o.status}
+                            onChange={(e) => handleStatusChange(o.id, e.target.value)}
+                            className="bg-slate-800 border border-slate-700 text-white px-2 py-1 rounded"
                           >
-                            {o.status}
-                          </span>
+                            <option value="Pending">Pending</option>
+                            <option value="Shipped">Shipped</option>
+                            <option value="Delivered">Delivered</option>
+                            <option value="Cancelled">Cancelled</option>
+                          </select>
                         </td>
+
                         <td className="px-4 py-3 text-sm">{formatDate(o.created_at)}</td>
                       </tr>
                     ))}

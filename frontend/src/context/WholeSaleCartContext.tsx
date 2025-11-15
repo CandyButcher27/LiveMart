@@ -17,10 +17,18 @@ export const WholesaleCartProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const addItem = (product: Product) => {
     setItems((prev) => {
-      const existing = prev.find((i) => i.id === product.id);
+      // Check for existing item with same ID or same name
+      const existing = prev.find((i) => i.id === product.id || i.name === product.name);
       if (existing) {
         return prev.map((i) =>
-          i.id === product.id ? { ...i, quantity: i.quantity + 1 } : i
+          (i.id === product.id || i.name === product.name)
+            ? { 
+                ...i, 
+                quantity: i.quantity + 1,
+                // Preserve the original ID if we matched by name
+                ...(i.id !== product.id && product.id && { id: product.id })
+              } 
+            : i
         );
       }
       return [...prev, { ...product, quantity: 1 }];

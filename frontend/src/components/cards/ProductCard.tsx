@@ -1,5 +1,5 @@
 import React from "react";
-import type { Product } from "../../api/products";
+import type { Product } from "../../../types/products";
 import { useCart } from "../../context/CartContext";
 import { showSuccess } from "../../utils/toast";
 
@@ -26,6 +26,9 @@ const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
       />
       <h3 className="text-lg font-semibold text-white">{product.name}</h3>
       <p className="text-slate-400 text-sm line-clamp-2">{product.description}</p>
+      <div className="mt-2 text-sm text-blue-400">
+        🚚 {product.delivery_time} {product.delivery_time === 1 ? 'day' : 'days'} delivery
+      </div>
       <div className="flex items-center justify-between mt-3">
         <span className="text-indigo-400 font-semibold">₹{product.price}</span>
         <button

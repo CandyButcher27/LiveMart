@@ -31,10 +31,13 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const addToCart = (item: CartItem) => {
     setCart((prev) => {
-      const existing = prev.find((p) => p.id === item.id);
+      // Check for existing item with same ID or same name
+      const existing = prev.find((p) => p.id === item.id || p.name === item.name);
       if (existing) {
         return prev.map((p) =>
-          p.id === item.id ? { ...p, quantity: p.quantity + item.quantity } : p
+          (p.id === item.id || p.name === item.name) 
+            ? { ...p, quantity: p.quantity + item.quantity } 
+            : p
         );
       }
       return [...prev, item];

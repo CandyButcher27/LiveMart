@@ -17,13 +17,16 @@ export type OrderCustomer = {
 export type Order = {
   id: number;
   product_id: number;
+  product_name: string;
+  quantity: number;
+  total_price: number;
+  status: 'Pending' | 'Processing' | 'Shipped' | 'Delivered' | 'Cancelled' | string;
+  created_at: string; // ISO timestamp
+  delivery_time?: number;
   product?: OrderProduct;
   customer_id: number;
   customer?: OrderCustomer;
-  quantity: number;
-  total_price: number;
-  status: "Pending" | "Processing" | "Shipped" | "Delivered" | "Cancelled" | string;
-  created_at: string; // ISO timestamp
+  category?: string; // Product category (e.g., 'electronics', 'fruits')
 };
 
 export type PaginatedOrders = {

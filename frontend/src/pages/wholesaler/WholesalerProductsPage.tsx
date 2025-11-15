@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axiosInstance from "../../api/axiosInstance";
-import type { Product, ProductCreate } from "../../types/products";
+import type { Product, ProductCreate, ProductCategory } from "../../../types/products";
+import { ProductCategoryLabels } from "../../../types/products";
 import Navbar from "../../components/layout/Navbar";
 import CartModal from "../../components/cart/CartModal";
 import { showError, showSuccess } from "../../utils/toast";
@@ -13,8 +14,18 @@ const fetchWholesaleProducts = async (): Promise<Product[]> => {
 };
 
 const addProductApi = async (product: ProductCreate) => {
-  const { data } = await axiosInstance.post("/products/", product);
-  return data;
+  const productData = {
+    ...product,
+    product_type: 'wholesale',
+    description: ProductCategoryLabels[product.category] || 'No description'
+  };
+  try {
+    const { data } = await axiosInstance.post("/products/", productData);
+    return data;
+  } catch (error) {
+    console.error('Error adding product:', error);
+    throw error;
+  }
 };
 
 const WholesalerProductsPage: React.FC = () => {
@@ -22,9 +33,10 @@ const WholesalerProductsPage: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState<ProductCreate>({
     name: "",
-    description: "",
     price: 0,
     stock: 0,
+    category: 'fruits',
+    delivery_time: 1 // Default to 1 day for fruits
   });
 
   const { data: products = [], isLoading } = useQuery<Product[]>({
@@ -37,7 +49,7 @@ const WholesalerProductsPage: React.FC = () => {
     onSuccess: () => {
       showSuccess("Wholesale product added!");
       setShowModal(false);
-      setForm({ name: "", description: "", price: 0, stock: 0 });
+      setForm({ name: "", price: 0, stock: 0, category: 'fruits', delivery_time: 1 }); // Reset to default values
       queryClient.invalidateQueries({ queryKey: ["wholesaleProducts"] });
     },
     onError: () => showError("Failed to add product"),
@@ -90,7 +102,7 @@ const WholesalerProductsPage: React.FC = () => {
                       <tr key={p.id} className="hover:bg-slate-900/40">
                         <td className="px-4 py-3 text-sm">{p.name}</td>
                         <td className="px-4 py-3 text-sm text-slate-400">
-                          {p.description}
+                          {ProductCategoryLabels[p.category as ProductCategory] || 'N/A'}
                         </td>
                         <td className="px-4 py-3 text-right text-sm">
                           ₹{p.price}
@@ -125,15 +137,24 @@ const WholesalerProductsPage: React.FC = () => {
                     required
                     className="input"
                   />
-                  <textarea
-                    placeholder="Description"
-                    value={form.description}
-                    onChange={(e) =>
-                      setForm({ ...form, description: e.target.value })
-                    }
+                  <select
+                    value={form.category}
+                    onChange={(e) => {
+                      const newCategory = e.target.value as ProductCategory;
+                      setForm({ 
+                        ...form, 
+                        category: newCategory,
+                        delivery_time: newCategory === 'fruits' ? 1 : 3
+                      });
+                    }}
+                    className="input bg-black text-white border border-gray-600 rounded p-2 w-full focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     required
-                    className="input"
-                  />
+                    style={{ backgroundColor: 'black' }}
+                  >
+                    {(Object.entries(ProductCategoryLabels) as [ProductCategory, string][]).map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
                   <input
                     type="number"
                     placeholder="Price"
@@ -154,6 +175,21 @@ const WholesalerProductsPage: React.FC = () => {
                     required
                     className="input"
                   />
+                  <select
+                    value={form.delivery_time}
+                    onChange={(e) =>
+                      setForm({ ...form, delivery_time: parseInt(e.target.value) })
+                    }
+                    className="input bg-black text-white border border-gray-600 rounded p-2 w-full focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    style={{ backgroundColor: 'black' }}
+                    required
+                  >
+                    {[1, 2, 3, 4, 5, 6, 7].map((days) => (
+                      <option key={days} value={days}>
+                        {days} {days === 1 ? 'day' : 'days'} delivery
+                      </option>
+                    ))}
+                  </select>
 
                   <div className="flex justify-end gap-3 mt-3">
                     <button

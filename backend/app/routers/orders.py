@@ -93,12 +93,21 @@ def get_customer_orders(
             detail="Only customers can view their orders."
         )
 
-    # ✅ 2. Fetch orders for this customer
+    # ✅ 2. Fetch orders for this customer with product details
     orders = session.exec(
-        select(Order).where(Order.customer_id == user["id"])
+        select(Order, Product)
+        .join(Product, Order.product_id == Product.id)
+        .where(Order.customer_id == user["id"])
     ).all()
 
-    return orders
+    # Format response to include product category
+    result = []
+    for order, product in orders:
+        order_data = order.dict()
+        order_data["category"] = product.category
+        result.append(order_data)
+
+    return result
 
 # 🧩 Get all incoming orders for wholesaler’s products
 @router.get("/wholesaler")
@@ -117,14 +126,20 @@ def get_wholesaler_orders(
         )
 
     # Select all orders where the product's owner_id matches the wholesaler
-    stmt = (
-        select(Order)
-        .join(Product)
+    orders = session.exec(
+        select(Order, Product)
+        .join(Product, Order.product_id == Product.id)
         .where(Product.owner_id == user["id"])
-    )
-    orders = session.exec(stmt).all()
+    ).all()
 
-    return orders
+    # Format response to include product category
+    result = []
+    for order, product in orders:
+        order_data = order.dict()
+        order_data["category"] = product.category
+        result.append(order_data)
+
+    return result
 # 🧩 Get all customer orders for a retailer’s products
 @router.get("/retailer")
 def get_retailer_orders(
@@ -141,14 +156,20 @@ def get_retailer_orders(
             detail="Only retailers can view orders for their products."
         )
 
-    stmt = (
-        select(Order)
-        .join(Product)
+    orders = session.exec(
+        select(Order, Product)
+        .join(Product, Order.product_id == Product.id)
         .where(Product.owner_id == user["id"])
-    )
-    orders = session.exec(stmt).all()
+    ).all()
 
-    return orders
+    # Format response to include product category
+    result = []
+    for order, product in orders:
+        order_data = order.dict()
+        order_data["category"] = product.category
+        result.append(order_data)
+
+    return result
 
 # 🧩 Place a wholesale order (retailer → wholesaler)
 @router.post("/wholesale")
@@ -208,3 +229,86 @@ def place_wholesale_order(
         "total_price": total_price,
         "remaining_stock": product.stock,
     }
+    
+@router.patch("/{order_id}/status")
+def update_retail_order_status(
+    order_id: int,
+    payload: dict,
+    session: Session = Depends(get_session),
+    user=Depends(get_current_user)
+):
+    new_status = payload.get("status")
+    if not new_status:
+        raise HTTPException(status_code=400, detail="Status is required")
+
+    # 1. Fetch order
+    order = session.get(Order, order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    # 2. Fetch product linked to this order
+    product = session.get(Product, order.product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    # 3. Only retailers can update retail product orders
+    if user["role"] != "retailer":
+        raise HTTPException(
+            status_code=403,
+            detail="Only retailers can update order status"
+        )
+
+    # 4. Retailer must OWN this product
+    if product.owner_id != user["id"]:
+        raise HTTPException(
+            status_code=403,
+            detail="You are not allowed to update this order"
+        )
+
+    # 5. Product must be retail
+    if product.product_type != "retail":
+        raise HTTPException(
+            status_code=400,
+            detail="Only retail product orders can be updated by retailers"
+        )
+
+    # 6. Update status
+    order.status = new_status
+    session.add(order)
+    session.commit()
+    session.refresh(order)
+
+    return {
+        "message": "Order status updated successfully",
+        "order_id": order.id,
+        "new_status": new_status
+    }
+
+
+@router.get("/my-wholesale-orders")
+def get_my_wholesale_orders(
+    session: Session = Depends(get_session),
+    user=Depends(get_current_user)
+):
+    if user["role"] != "retailer":
+        raise HTTPException(
+            status_code=403,
+            detail="Only retailers can view their wholesale purchases."
+        )
+
+    orders = session.exec(
+        select(Order, Product)
+        .join(Product, Order.product_id == Product.id)
+        .where(Order.customer_id == user["id"])   # retailer is the buyer
+        .where(Product.product_type == "wholesale")
+    ).all()
+
+    result = []
+    for order, product in orders:
+        order_dict = order.dict()
+        order_dict["product_name"] = product.name
+        order_dict["supplier"] = product.owner_id
+        order_dict["category"] = product.category
+        result.append(order_dict)
+
+    return result

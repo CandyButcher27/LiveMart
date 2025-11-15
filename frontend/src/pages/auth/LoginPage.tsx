@@ -1,61 +1,187 @@
 import React, { useState } from "react";
-import { useAuth } from "../../context/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { showSuccess, showError } from "../../utils/toast";
+import { requestLoginOTP, verifyLoginOTP, requestGoogleLoginOTP, verifyGoogleOTP } from "../../api/auth";
+import { GoogleLoginButton } from "../../components/auth/GoogleLoginButton";
 
 const LoginPage = () => {
-  const { login } = useAuth();
-  const navigate = useNavigate();
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [remember, setRemember] = useState(true);
+  const [otp, setOtp] = useState("");
+  const [step, setStep] = useState<"email" | "otp">("email");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [isRequestingOTP, setIsRequestingOTP] = useState(false);
 
-  const handleLogin = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setError("");
-  setLoading(true);
+  const handleRequestOTP = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
 
-  try {
-    // Attempt login via context
-    await login({ username, password }, remember);
-
-    // Retrieve role from storage after successful login
-    const role =
-      localStorage.getItem("livemart:role") ||
-      sessionStorage.getItem("livemart:role");
-
-    // ✅ Success feedback
-    showSuccess("Login successful! Redirecting...");
-
-    // Redirect user based on their role
-    setTimeout(() => {
-      navigate(`/${role ?? "customer"}`);
-    }, 800); // short delay for UX smoothness
-  } catch (err: any) {
-    // 🧱 Handle backend error structure
-    const detail = err?.response?.data?.detail;
-
-    if (Array.isArray(detail)) {
-      const msg = detail[0]?.msg || "Login failed";
-      setError(msg);
-      showError(msg);
-    } else if (typeof detail === "string") {
+    try {
+      await requestLoginOTP(email);
+      setStep("otp");
+      showSuccess("OTP sent to your email!");
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail || "Failed to send OTP";
       setError(detail);
       showError(detail);
-    } else {
-      setError("Login failed");
-      showError("Login failed");
+    } finally {
+      setLoading(false);
     }
-  } finally {
-    setLoading(false);
-  }
-};
+  };
+
+  const handleGoogleLogin = async (email: string, name: string) => {
+    try {
+      setLoading(true);
+      setEmail(email);
+      setError(""); // Clear any previous errors
+      
+      // Request OTP for Google login
+      const response = await requestGoogleLoginOTP(email, name);
+      if (response) {
+        setStep("otp");
+        showSuccess("OTP sent to your email!");
+      }
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail || "Failed to send OTP. Please try again.";
+      setError(detail);
+      showError(detail);
+      throw err; // Re-throw to allow the GoogleLoginButton to handle the error
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOTP = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      let response;
+      
+      // Check if this is a Google OTP verification (no password provided)
+      if (!password) {
+        console.log('Starting Google OTP verification for:', email);
+        try {
+          response = await verifyGoogleOTP(email, otp);
+          
+          if (response?.access_token) {
+            console.log('Google OTP verification successful');
+            // Save the token and user info for Google login
+            localStorage.setItem("livemart:token", response.access_token);
+            localStorage.setItem("livemart:role", response.role || 'customer');
+            localStorage.setItem("livemart:email", email);
+
+            showSuccess("Login successful! Redirecting...");
+
+            // Redirect based on role
+            const role = response.role || 'customer';
+            const validRoles = ['customer', 'retailer', 'wholesaler'];
+            const redirectPath = validRoles.includes(role) ? `/${role}` : '/';
+            
+            // Use window.location.href for a full page reload
+            setTimeout(() => {
+              window.location.href = redirectPath;
+            }, 500);
+            return;
+          } else {
+            console.error('Invalid response format from server:', response);
+            throw new Error('Invalid response from server');
+          }
+        } catch (err: any) {
+          console.error('Google OTP verification error:', {
+            error: err,
+            response: err.response?.data,
+            status: err.response?.status
+          });
+          
+          let errorMessage = 'An error occurred. Please try again.';
+          
+          if (err.response) {
+            // Handle specific error status codes
+            switch (err.response.status) {
+              case 400:
+                errorMessage = err.response.data?.detail || 'Invalid OTP. Please check the code and try again.';
+                break;
+              case 401:
+                errorMessage = 'Session expired. Please try logging in again.';
+                break;
+              case 404:
+                errorMessage = 'User not found. Please sign up first.';
+                break;
+              default:
+                errorMessage = err.response.data?.detail || 'An error occurred. Please try again.';
+            }
+          }
+          
+          setError(errorMessage);
+          showError(errorMessage);
+          return;
+        }
+      }
+      
+      // Handle regular email/password OTP verification
+      try {
+        response = await verifyLoginOTP({
+          email,
+          password: password || '', // Ensure password is not undefined
+          otp,
+          isGoogleLogin: false
+        });
+
+        // Save the token and user info for regular login
+        localStorage.setItem("livemart:token", response.access_token);
+        localStorage.setItem("livemart:role", response.role || 'customer');
+        localStorage.setItem("livemart:email", response.email || email);
+
+        showSuccess("Login successful! Redirecting...");
+
+        // Redirect based on role
+        const role = response.role || 'customer';
+        const validRoles = ['customer', 'retailer', 'wholesaler'];
+        const redirectPath = validRoles.includes(role) ? `/${role}` : '/';
+        
+        // Use window.location.href for a full page reload
+        setTimeout(() => {
+          window.location.href = redirectPath;
+        }, 500);
+      } catch (err: any) {
+        console.error('Regular login OTP verification error:', err);
+        const detail = err?.response?.data?.detail || "Invalid email, password, or OTP";
+        setError(detail);
+        showError(detail);
+      }
+    } catch (err: any) {
+      console.error('Unexpected error during OTP verification:', err);
+      const detail = err?.response?.data?.detail || "An unexpected error occurred. Please try again.";
+      setError(detail);
+      showError(detail);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendOTP = async () => {
+    if (isRequestingOTP) return;
+    
+    setIsRequestingOTP(true);
+    try {
+      await requestLoginOTP(email);
+      showSuccess("New OTP sent to your email!");
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail || "Failed to resend OTP";
+      setError(detail);
+      showError(detail);
+    } finally {
+      setIsRequestingOTP(false);
+    }
+  };
 
   return (
-    <div className="min-h-screen grid grid-cols-1 md:grid-cols-2">
-      <div className="hidden md:flex items-center justify-center p-10 bg-gradient-to-b from-blue-700 to-purple-800">
+    <div className="min-h-screen w-full flex flex-col md:flex-row">
+      <div className="hidden md:flex md:w-1/2 items-center justify-center p-10 bg-gradient-to-b from-blue-700 to-purple-800">
         <div className="max-w-md text-center space-y-4">
           <h1 className="text-4xl font-bold text-white">Welcome to LiveMART</h1>
           <p className="text-slate-200">
@@ -64,61 +190,165 @@ const LoginPage = () => {
         </div>
       </div>
 
-      <div className="flex items-center justify-center p-8 bg-slate-950">
-        <div className="w-full max-w-md space-y-6">
-          <h2 className="text-2xl font-semibold text-white text-center">
-            Sign In
-          </h2>
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="block text-slate-300 text-sm mb-1">
-                Username
-              </label>
-              <input
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full rounded-xl bg-slate-800 border border-slate-700 px-3 py-2 text-white placeholder:text-slate-500 focus:ring-2 focus:ring-indigo-600"
-                placeholder="you@example.com"
-              />
-            </div>
-            <div>
-              <label className="block text-slate-300 text-sm mb-1">
-                Password
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-xl bg-slate-800 border border-slate-700 px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-600"
-                placeholder="••••••••"
-              />
-            </div>
-            <label className="flex items-center text-slate-400 text-sm">
-              <input
-                type="checkbox"
-                checked={remember}
-                onChange={(e) => setRemember(e.target.checked)}
-                className="mr-2"
-              />
-              Remember me
-            </label>
-            {error && <p className="text-red-400 text-sm">{error}</p>}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-blue-600 to-purple-700 text-white py-2 rounded-full font-semibold hover:scale-[1.02] transition disabled:opacity-60"
-            >
-              {loading ? "Signing in..." : "Sign In"}
-            </button>
-            
-            <p className="text-center text-slate-400 text-sm">
-              Don’t have an account?{" "}
-              <a href="/auth/register" className="text-indigo-400 hover:underline">
-                Sign up
-              </a>
+      <div className="flex-1 flex items-center justify-center p-6 bg-white">
+        <div className="w-full max-w-md space-y-8">
+          <div>
+            <h2 className="text-3xl font-bold text-gray-900">
+              {step === 'email' ? 'Sign in to your account' : 'Enter OTP'}
+            </h2>
+            <p className="mt-2 text-sm text-gray-600">
+              {step === 'email' ? (
+                <>
+                  Don't have an account?{' '}
+                  <Link to="/auth/register" className="font-medium text-blue-600 hover:text-blue-500 hover:underline">
+                    Sign up now
+                  </Link>
+                </>
+              ) : (
+                <span className="text-gray-600">
+                  We've sent a 6-digit code to <b>{email}</b>
+                </span>
+              )}
             </p>
+          </div>
 
-          </form>
+          {error && (
+            <div className="bg-red-50 border-l-4 border-red-500 p-4">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm text-red-700">{error}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {step === 'email' ? (
+            <form className="mt-8 space-y-6" onSubmit={handleRequestOTP}>
+              <div className="rounded-md shadow-sm space-y-4">
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                    Email address
+                  </label>
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    autoComplete="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border"
+                    placeholder="you@example.com"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                    Password
+                  </label>
+                  <input
+                    id="password"
+                    name="password"
+                    type="password"
+                    autoComplete="current-password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border"
+                    placeholder="••••••••"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div className="space-y-4">
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loading ? 'Sending OTP...' : 'Send OTP'}
+                  </button>
+                  
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-gray-300"></div>
+                    </div>
+                    <div className="relative flex justify-center text-sm">
+                      <span className="px-2 bg-white text-gray-500">Or continue with</span>
+                    </div>
+                  </div>
+                  
+                  <GoogleLoginButton 
+                    onSuccess={handleGoogleLogin} 
+                    loading={loading} 
+                    setLoading={setLoading} 
+                  />
+                </div>
+              </div>
+            </form>
+          ) : (
+            <form className="mt-8 space-y-6" onSubmit={handleVerifyOTP}>
+              <div className="rounded-md shadow-sm space-y-4">
+                <div>
+                  <label htmlFor="otp" className="block text-sm font-medium text-gray-700">
+                    Enter 6-digit OTP
+                  </label>
+                  <div className="mt-1 flex rounded-md shadow-sm">
+                    <input
+                      id="otp"
+                      name="otp"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={6}
+                      required
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, ''))}
+                      className="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-l-md border-gray-300 focus:ring-blue-500 focus:border-blue-500 sm:text-sm border"
+                      placeholder="123456"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleResendOTP}
+                      disabled={isRequestingOTP || loading}
+                      className="inline-flex items-center px-3 py-2 border border-l-0 border-gray-300 bg-gray-50 text-gray-500 text-sm font-medium hover:bg-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-r-md"
+                    >
+                      {isRequestingOTP ? 'Sending...' : 'Resend'}
+                    </button>
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Didn't receive the code? Check your spam folder or request a new code.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => setStep('email')}
+                  className="text-sm font-medium text-blue-600 hover:text-blue-500"
+                >
+                  ← Back to login
+                </button>
+              </div>
+
+              <div>
+                <button
+                  type="submit"
+                  disabled={loading || otp.length !== 6}
+                  className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? 'Verifying...' : 'Verify & Sign In'}
+                </button>
+              </div>
+            </form>
+          )}
         </div>
       </div>
     </div>

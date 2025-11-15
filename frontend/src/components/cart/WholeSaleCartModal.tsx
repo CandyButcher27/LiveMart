@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useWholesaleCart } from "../../context/WholesaleCartContext";
+import { useWholesaleCart } from "../../context/WholeSaleCartContext";
 import { showError, showSuccess } from "../../utils/toast";
 import axiosInstance from "../../api/axiosInstance";
 

@@ -5,6 +5,10 @@ import Navbar from "../../components/layout/Navbar";
 import CartModal from "../../components/cart/CartModal";
 import { showError } from "../../utils/toast";
 import ProtectedRoute from "../../routes/ProtectedRoute";
+import { updateOrderStatus } from "../../api/orders";
+import { useQueryClient } from "@tanstack/react-query";
+import { showSuccess } from "../../utils/toast";
+
 
 const fetchWholesalerOrders = async () => {
   const { data } = await axiosInstance.get("/orders/wholesaler");
