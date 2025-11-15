@@ -11,30 +11,40 @@ const WholesalerDashboard: React.FC = () => {
       <CartModal />
 
       <main className="max-w-6xl mx-auto p-6">
-        <h1 className="text-2xl font-semibold mb-6">Wholesaler Dashboard</h1>
+        <h1 className="text-3xl font-semibold mb-6 tracking-wide">
+          Wholesaler Dashboard
+        </h1>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* My Products */}
-          <div className="glass-card p-4 flex flex-col gap-4">
-            <div>My Wholesale Listings</div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          
+          {/* My Wholesale Listings */}
+          <div className="glass-card p-6 rounded-2xl flex flex-col gap-3 hover:bg-slate-900/40 transition">
+            <div className="text-lg font-medium">My Wholesale Listings</div>
+            <p className="text-slate-400 text-sm">
+              Manage the products you are selling to retailers.
+            </p>
             <Link
               to="/wholesaler/products"
-              className="btn glass-card px-3 py-2 text-sm text-center"
+              className="px-4 py-2 bg-blue-700/60 hover:bg-blue-700 rounded-lg text-center text-sm font-medium transition"
             >
               Manage Products
             </Link>
           </div>
 
           {/* Incoming Orders */}
-          <div className="glass-card p-4 flex flex-col gap-4">
-            <div>Incoming Orders</div>
+          <div className="glass-card p-6 rounded-2xl flex flex-col gap-3 hover:bg-slate-900/40 transition">
+            <div className="text-lg font-medium">Incoming Orders</div>
+            <p className="text-slate-400 text-sm">
+              Retailers who purchased your wholesale items.
+            </p>
             <Link
               to="/wholesaler/orders"
-              className="btn glass-card px-3 py-2 text-sm text-center"
+              className="px-4 py-2 bg-emerald-700/60 hover:bg-emerald-700 rounded-lg text-center text-sm font-medium transition"
             >
               View Orders
             </Link>
           </div>
+
         </div>
       </main>
     </div>

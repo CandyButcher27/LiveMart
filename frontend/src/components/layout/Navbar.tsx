@@ -2,7 +2,7 @@
 import React from "react";
 import { useAuth } from "../../context/AuthContext";
 import CartIcon from "../cart/CartIcon";
-import SearchBar from "../search/SearchBar";
+
 
 const Navbar: React.FC = () => {
   const { email, role, logout } = useAuth();
@@ -17,7 +17,7 @@ const Navbar: React.FC = () => {
       <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
         <div className="text-xl font-bold">LiveMART</div>
 
-        <SearchBar onSearch={handleSearch} />
+        
 
         <div className="flex items-center gap-4">
           <CartIcon />

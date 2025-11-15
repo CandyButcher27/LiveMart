@@ -1,184 +1,173 @@
-// src/pages/customer/CustomerDashboard.tsx
 import React, { useState, useMemo, useEffect } from "react";
 import Navbar from "../../components/layout/Navbar";
 import ProductCard from "../../components/cards/ProductCard";
 import { useProducts } from "../../api/products";
 import CartModal from "../../components/cart/CartModal";
 import { Link } from "react-router-dom";
-import Fuse from "fuse.js"; // fuzzy search library
+import Fuse from "fuse.js";
 
 const CustomerDashboard: React.FC = () => {
   const { data: products = [], isLoading } = useProducts();
 
-  // ------------------------------
-  // SEARCH STATES
-  // ------------------------------
+  /* ---------------------------------------------
+      SEARCH & FILTER STATES
+  --------------------------------------------- */
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [priceRange, setPriceRange] = useState([0, 1000]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [history, setHistory] = useState<string[]>([]);
 
-  // ------------------------------
-  // DEBOUNCE SEARCH INPUT
-  // ------------------------------
+  /* ---------------------------------------------
+      DEBOUNCE SEARCH
+  --------------------------------------------- */
   useEffect(() => {
-    const handler = setTimeout(() => {
+    const t = setTimeout(() => {
       setDebouncedSearch(search);
-      if (search.trim().length > 0) {
+
+      if (search.trim()) {
         setHistory((prev) =>
-          [...new Set([search, ...prev])].slice(0, 5) // keep latest 5
+          [...new Set([search, ...prev])].slice(0, 5)
         );
       }
-    }, 300); // 300ms debounce
+    }, 300);
 
-    return () => clearTimeout(handler);
+    return () => clearTimeout(t);
   }, [search]);
 
-  // ------------------------------
-  // CATEGORIES FROM PRODUCT LIST
-  // ------------------------------
+  /* ---------------------------------------------
+      CATEGORY LIST
+  --------------------------------------------- */
   const categories = Array.from(new Set(products.map((p) => p.category)));
 
-  // ------------------------------
-  // FUZZY SEARCH INSTANCE
-  // ------------------------------
-  const fuse = useMemo(
-    () =>
-      new Fuse(products, {
-        keys: ["name", "description", "category"],
-        threshold: 0.3, // typo tolerance
-      }),
-    [products]
-  );
+  /* ---------------------------------------------
+      FUZZY SEARCH
+  --------------------------------------------- */
+  const fuse = useMemo(() => {
+    return new Fuse(products, {
+      keys: ["name", "description", "category"],
+      threshold: 0.3,
+    });
+  }, [products]);
 
-  // ------------------------------
-  // FINAL FILTERED RESULTS
-  // ------------------------------
+  /* ---------------------------------------------
+      FILTERING LOGIC
+  --------------------------------------------- */
   const filteredProducts = useMemo(() => {
     let results = products;
 
-    // Fuzzy search OR simple search
-    if (debouncedSearch.trim() !== "") {
-      const fuzzyResults = fuse.search(debouncedSearch).map((r) => r.item);
-      results = fuzzyResults;
+    if (debouncedSearch) {
+      results = fuse.search(debouncedSearch).map((r) => r.item);
     }
 
-    // Category Filter
     if (selectedCategory) {
       results = results.filter((p) => p.category === selectedCategory);
     }
 
-    // Price Range
     results = results.filter(
       (p) => p.price >= priceRange[0] && p.price <= priceRange[1]
     );
 
     return results;
-  }, [debouncedSearch, priceRange, selectedCategory, fuse, products]);
+  }, [debouncedSearch, selectedCategory, priceRange, fuse, products]);
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
       <Navbar />
       <CartModal />
 
-      <main className="max-w-6xl mx-auto p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-2xl font-semibold">Available Products</h1>
+      <main className="max-w-7xl mx-auto px-6 py-6">
+        {/* HEADER */}
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-3xl font-bold text-white tracking-wide">
+            Explore Products
+          </h1>
           <Link
             to="/customer/orders"
-            className="btn glass-card px-3 py-2 text-sm"
+            className="px-4 py-2 rounded-xl bg-white/10 border border-white/20 hover:bg-white/20 transition text-sm"
           >
             My Orders
           </Link>
         </div>
 
-        {/* ------------------------------
-            SEARCH BAR
-        ------------------------------ */}
-        <input
-          type="text"
-          placeholder="Search for products…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full mb-4 p-2 rounded bg-slate-900 text-white border border-slate-700 focus:ring-2 focus:ring-blue-600"
-        />
+        {/* SEARCH BAR */}
+        <div className="mb-6 glass-card p-4 rounded-2xl">
+          <input
+            type="text"
+            placeholder="Search by name, category, type…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500/60 outline-none"
+          />
+        </div>
 
-        {/* ------------------------------
-            SEARCH HISTORY BADGES
-        ------------------------------ */}
+        {/* SEARCH HISTORY */}
         {history.length > 0 && (
-          <div className="flex gap-2 mb-4 flex-wrap">
-            {history.map((item, idx) => (
-              <span
-                key={idx}
+          <div className="flex gap-2 flex-wrap mb-4">
+            {history.map((item, i) => (
+              <button
+                key={i}
                 onClick={() => setSearch(item)}
-                className="px-3 py-1 bg-slate-800 text-sm rounded-full border border-slate-600 cursor-pointer hover:bg-slate-700"
+                className="px-3 py-1 rounded-full text-xs bg-slate-800/60 border border-slate-600 hover:bg-slate-700 transition"
               >
                 {item}
-              </span>
+              </button>
             ))}
           </div>
         )}
 
-        {/* ------------------------------
-            CATEGORY FILTER CHIPS
-        ------------------------------ */}
-        <div className="flex gap-2 mb-4 flex-wrap">
-          <span
+        {/* CATEGORIES */}
+        <div className="flex gap-3 flex-wrap mb-6">
+          <button
             onClick={() => setSelectedCategory(null)}
-            className={`px-3 py-1 rounded-full text-sm cursor-pointer border ${
+            className={`px-4 py-1.5 rounded-full text-sm border transition ${
               selectedCategory === null
-                ? "bg-blue-700 border-blue-600"
-                : "bg-slate-800 border-slate-700"
+                ? "bg-blue-600 text-white border-blue-500 shadow-lg"
+                : "bg-white/10 border-white/20"
             }`}
           >
             All
-          </span>
+          </button>
 
-          {categories.map((c) => (
-            <span
-              key={c}
-              onClick={() => setSelectedCategory(c)}
-              className={`px-3 py-1 rounded-full text-sm cursor-pointer border ${
-                selectedCategory === c
-                  ? "bg-blue-700 border-blue-600"
-                  : "bg-slate-800 border-slate-700"
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setSelectedCategory(cat)}
+              className={`px-4 py-1.5 rounded-full text-sm border transition ${
+                selectedCategory === cat
+                  ? "bg-blue-600 text-white border-blue-500 shadow-lg"
+                  : "bg-white/10 border-white/20 hover:bg-white/20"
               }`}
             >
-              {c}
-            </span>
+              {cat}
+            </button>
           ))}
         </div>
 
-        {/* ------------------------------
-            PRICE RANGE SELECTOR
-        ------------------------------ */}
-        <div className="mb-6">
-          <label className="block mb-2 text-sm text-slate-300">
-            Price Range (₹{priceRange[0]} - ₹{priceRange[1]})
+        {/* PRICE RANGE */}
+        <div className="glass-card p-4 rounded-2xl mb-8">
+          <label className="block text-sm mb-2 text-slate-300">
+            Price Range — ₹{priceRange[0]} to ₹{priceRange[1]}
           </label>
           <input
             type="range"
             min={0}
             max={50000}
             value={priceRange[1]}
-            onChange={(e) => setPriceRange([0, parseInt(e.target.value)])}
-            className="w-full"
+            onChange={(e) => setPriceRange([0, Number(e.target.value)])}
+            className="w-full accent-blue-500"
           />
         </div>
 
-        {/* ------------------------------
-            PRODUCT LIST
-        ------------------------------ */}
+        {/* PRODUCT LIST */}
         {isLoading ? (
-          <p className="text-slate-400">Loading products...</p>
+          <p className="text-center text-slate-400 mt-10">Loading products...</p>
         ) : filteredProducts.length === 0 ? (
-          <p className="text-slate-400 text-center mt-6">
-            ❌ No matching products found.
+          <p className="text-center text-slate-400 mt-10 text-lg">
+            ❌ No matching products found
           </p>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="glass-card p-6 rounded-3xl grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredProducts.map((p) => (
               <ProductCard key={p.id} product={p} />
             ))}
