@@ -4,6 +4,8 @@ import { fetchRetailerOrders, updateOrderStatus } from "../../api/orders";
 import { showError, showSuccess } from "../../utils/toast";
 import Navbar from "../../components/layout/Navbar";
 import ProtectedRoute from "../../routes/ProtectedRoute";
+import CountdownTimer from '../../components/common/CountdownTimer';
+import { addDays } from '../../utils/googleCalendar';
 
 function formatDate(iso?: string) {
   if (!iso) return "-";
@@ -122,7 +124,13 @@ const RetailerOrdersPage: React.FC = () => {
                         </td>
 
                         <td className="px-4 py-3 text-sm">
-                          {formatDate(o.created_at)}
+                          {new Date(o.created_at).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}
+                        </td>
+                        <td className="px-4 py-3 text-sm">
+                          <CountdownTimer
+                            targetDate={addDays(new Date(o.created_at), o.delivery_time || (o.category === 'electronics' ? 5 : 1))}
+                            className="mt-1"
+                          />
                         </td>
                       </tr>
                     ))}

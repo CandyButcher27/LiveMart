@@ -14,12 +14,12 @@ const CustomerDashboard: React.FC = () => {
   --------------------------------------------- */
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [priceRange, setPriceRange] = useState([0, 1000]);
+  const [priceRange, setPriceRange] = useState([0, 20000]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [history, setHistory] = useState<string[]>([]);
 
   /* ---------------------------------------------
-      DEBOUNCE SEARCH
+      SEARCH DEBOUNCE
   --------------------------------------------- */
   useEffect(() => {
     const t = setTimeout(() => {
@@ -41,14 +41,16 @@ const CustomerDashboard: React.FC = () => {
   const categories = Array.from(new Set(products.map((p) => p.category)));
 
   /* ---------------------------------------------
-      FUZZY SEARCH
+      FUZZY SEARCH ENGINE
   --------------------------------------------- */
-  const fuse = useMemo(() => {
-    return new Fuse(products, {
-      keys: ["name", "description", "category"],
-      threshold: 0.3,
-    });
-  }, [products]);
+  const fuse = useMemo(
+    () =>
+      new Fuse(products, {
+        keys: ["name", "description", "category"],
+        threshold: 0.3,
+      }),
+    [products]
+  );
 
   /* ---------------------------------------------
       FILTERING LOGIC
@@ -76,39 +78,55 @@ const CustomerDashboard: React.FC = () => {
       <Navbar />
       <CartModal />
 
-      <main className="max-w-7xl mx-auto px-6 py-6">
+      <main className="max-w-7xl mx-auto px-6 py-8">
+
         {/* HEADER */}
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-bold text-white tracking-wide">
-            Explore Products
-          </h1>
-          <Link
-            to="/customer/orders"
-            className="px-4 py-2 rounded-xl bg-white/10 border border-white/20 hover:bg-white/20 transition text-sm"
-          >
-            My Orders
-          </Link>
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-3xl font-bold tracking-wide">Explore Products</h1>
+
+          <div className="flex gap-3">
+            {/* VIEW ORDERS */}
+            <Link
+              to="/customer/orders"
+              className="px-4 py-2 rounded-xl bg-white/10 border border-white/20 
+              hover:bg-white/20 transition text-sm"
+            >
+              My Orders
+            </Link>
+
+            {/* 🔥 PROXY MODE BUTTON (NEW) */}
+            <Link
+              to="/customer/proxy-wholesale"
+              className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 
+              transition shadow-lg text-sm font-semibold"
+            >
+              Proxy Wholesale Mode
+            </Link>
+          </div>
         </div>
 
         {/* SEARCH BAR */}
-        <div className="mb-6 glass-card p-4 rounded-2xl">
+        <div className="glass-card p-4 rounded-2xl mb-6">
           <input
             type="text"
-            placeholder="Search by name, category, type…"
+            placeholder="Search products..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500/60 outline-none"
+            className="w-full px-4 py-3 rounded-xl bg-white/10 
+            border border-white/20 text-white placeholder-slate-400 
+            focus:ring-2 focus:ring-blue-500/60 outline-none"
           />
         </div>
 
         {/* SEARCH HISTORY */}
         {history.length > 0 && (
-          <div className="flex gap-2 flex-wrap mb-4">
+          <div className="flex gap-2 flex-wrap mb-5">
             {history.map((item, i) => (
               <button
                 key={i}
                 onClick={() => setSearch(item)}
-                className="px-3 py-1 rounded-full text-xs bg-slate-800/60 border border-slate-600 hover:bg-slate-700 transition"
+                className="px-3 py-1 rounded-full text-xs bg-slate-800/60 
+                border border-slate-600 hover:bg-slate-700 transition"
               >
                 {item}
               </button>
@@ -117,7 +135,7 @@ const CustomerDashboard: React.FC = () => {
         )}
 
         {/* CATEGORIES */}
-        <div className="flex gap-3 flex-wrap mb-6">
+        <div className="flex gap-3 flex-wrap mb-8">
           <button
             onClick={() => setSelectedCategory(null)}
             className={`px-4 py-1.5 rounded-full text-sm border transition ${
@@ -145,10 +163,11 @@ const CustomerDashboard: React.FC = () => {
         </div>
 
         {/* PRICE RANGE */}
-        <div className="glass-card p-4 rounded-2xl mb-8">
+        <div className="glass-card p-4 rounded-2xl mb-10">
           <label className="block text-sm mb-2 text-slate-300">
             Price Range — ₹{priceRange[0]} to ₹{priceRange[1]}
           </label>
+
           <input
             type="range"
             min={0}
@@ -161,13 +180,15 @@ const CustomerDashboard: React.FC = () => {
 
         {/* PRODUCT LIST */}
         {isLoading ? (
-          <p className="text-center text-slate-400 mt-10">Loading products...</p>
+          <p className="text-center text-slate-400 mt-10 text-lg">
+            Loading products…
+          </p>
         ) : filteredProducts.length === 0 ? (
           <p className="text-center text-slate-400 mt-10 text-lg">
             ❌ No matching products found
           </p>
         ) : (
-          <div className="glass-card p-6 rounded-3xl grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredProducts.map((p) => (
               <ProductCard key={p.id} product={p} />
             ))}

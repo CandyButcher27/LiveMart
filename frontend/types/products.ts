@@ -30,5 +30,6 @@ export type ProductCreate = {
   description?: string;
   category: ProductCategory;
   delivery_time?: number;
+  product_type?: "retail" | "wholesale";
 };
 

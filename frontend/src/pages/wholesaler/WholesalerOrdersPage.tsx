@@ -6,6 +6,8 @@ import CartModal from "../../components/cart/CartModal";
 import ProtectedRoute from "../../routes/ProtectedRoute";
 import { showError, showSuccess } from "../../utils/toast";
 import { updateOrderStatus } from "../../api/orders";
+import CountdownTimer from '../../components/common/CountdownTimer';
+import { addDays } from '../../utils/googleCalendar';
 
 const fetchWholesalerOrders = async () => {
   const { data } = await axiosInstance.get("/orders/wholesaler");
@@ -119,7 +121,13 @@ const WholesalerOrdersPage: React.FC = () => {
 
                         {/* DATE */}
                         <td className="px-4 py-3 text-sm">
-                          {new Date(o.created_at).toLocaleString()}
+                          {new Date(o.created_at).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}
+                        </td>
+                        <td className="px-4 py-3 text-sm">
+                          <CountdownTimer
+                            targetDate={addDays(new Date(o.created_at), o.delivery_time || 3)}
+                            className="mt-1"
+                          />
                         </td>
                       </tr>
                     ))}

@@ -13,7 +13,7 @@ router = APIRouter()
 def add_product(
     product_data: ProductCreate,
     session: Session = Depends(get_session),
-    user=Depends(get_current_user)
+    user = Depends(get_current_user)
 ):
     # Only retailers or wholesalers can add products
     if user["role"] not in ["retailer", "wholesaler"]:
@@ -31,9 +31,11 @@ def add_product(
         stock=product_data.stock,
         category=product_data.category,
         delivery_time=product_data.delivery_time,
+        image_url=product_data.image_url,   # ⭐ REQUIRED FIELD
         owner_id=user["id"],
         product_type=product_type
     )
+
     session.add(product)
     session.commit()
     session.refresh(product)
@@ -48,10 +50,11 @@ def get_all_products(session: Session = Depends(get_session)):
     return products
 
 
+# 🧩 Get products (role-based filter)
 @router.get("/", response_model=list[ProductRead])
 def get_products(
     session: Session = Depends(get_session),
-    user=Depends(get_current_user)
+    user = Depends(get_current_user)
 ):
     role = user["role"]
 
@@ -66,7 +69,7 @@ def get_products(
         products = session.exec(
             select(Product)
             .where(Product.product_type == "wholesale")
-            .where(Product.owner_id != user["id"])  # not their own
+            .where(Product.owner_id != user["id"])
         ).all()
 
     # Wholesaler → see only their own products
@@ -76,10 +79,15 @@ def get_products(
         ).all()
 
     else:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid role")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid role"
+        )
 
     return products
 
+
+# 🧩 Get MY products (retailer only)
 @router.get("/my-products", response_model=list[ProductRead])
 def get_my_products(
     session: Session = Depends(get_session),
@@ -87,7 +95,7 @@ def get_my_products(
 ):
     if user["role"] != "retailer":
         raise HTTPException(
-            status_code=403, 
+            status_code=403,
             detail="Only retailers can view their own products."
         )
 
@@ -95,6 +103,20 @@ def get_my_products(
         select(Product)
         .where(Product.owner_id == user["id"])
         .where(Product.product_type == "retail")
+    ).all()
+
+    return products
+
+@router.get("/proxy-wholesale", response_model=list[ProductRead])
+def get_wholesale_proxy(
+    session: Session = Depends(get_session),
+    user=Depends(get_current_user)
+):
+    if user["role"] != "customer":
+        raise HTTPException(status_code=403, detail="Only customers can use proxy mode")
+
+    products = session.exec(
+        select(Product).where(Product.product_type == "wholesale")
     ).all()
 
     return products

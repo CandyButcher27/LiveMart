@@ -1,33 +1,55 @@
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axiosInstance from "../../api/axiosInstance";
+
 import type {
   Product,
   ProductCreate,
   ProductCategory,
 } from "../../../types/products";
 import { ProductCategoryLabels } from "../../../types/products";
+
 import Navbar from "../../components/layout/Navbar";
 import CartModal from "../../components/cart/CartModal";
 import { showError, showSuccess } from "../../utils/toast";
 import ProtectedRoute from "../../routes/ProtectedRoute";
 
+/* -------------------------------------------
+   Template Images (Hardcoded)
+-------------------------------------------- */
+const templateImages = [
+  { label: "Apple", path: "/product-images/apple.webp" },
+  { label: "Children", path: "/product-images/children.webp" },
+  { label: "Laptop", path: "/product-images/laptop.webp" },
+  { label: "Shoe", path: "/product-images/shoe.webp" },
+];
+
+/* -------------------------------------------
+   Fetch All Products (Backend returns retail + wholesale)
+-------------------------------------------- */
 const fetchWholesaleProducts = async (): Promise<Product[]> => {
-  const { data } = await axiosInstance.get("/products/my-products");
+  const { data } = await axiosInstance.get("/products/proxy-wholesale");
   return data;
 };
 
+/* -------------------------------------------
+   Add New Wholesale Product
+-------------------------------------------- */
 const addProductApi = async (product: ProductCreate) => {
   const productData = {
     ...product,
     product_type: "wholesale",
-    description: ProductCategoryLabels[product.category] || "No description",
+    description: ProductCategoryLabels[product.category] || "Wholesale product",
+    image_url: product.image_url,
   };
 
   const { data } = await axiosInstance.post("/products/", productData);
   return data;
 };
 
+/* -------------------------------------------
+   Category Styling for Badges
+-------------------------------------------- */
 const categoryColors: Record<string, string> = {
   fruits: "bg-green-700/30 text-green-300 border-green-800/50",
   vegetables: "bg-lime-700/30 text-lime-300 border-lime-800/50",
@@ -36,27 +58,39 @@ const categoryColors: Record<string, string> = {
   grains: "bg-orange-700/30 text-orange-300 border-orange-800/50",
 };
 
+/* -------------------------------------------
+   PAGE COMPONENT
+-------------------------------------------- */
 const WholesalerProductsPage: React.FC = () => {
   const queryClient = useQueryClient();
   const [showModal, setShowModal] = useState(false);
 
-  const [form, setForm] = useState<ProductCreate>({
+  /* Form State (includes image_url now) */
+  const [form, setForm] = useState<
+    Omit<ProductCreate, "product_type"> & { product_type: "wholesale" }
+  >({
     name: "",
     price: 0,
     stock: 0,
     category: "fruits",
     delivery_time: 1,
+    product_type: "wholesale",
+    description: "",
+    image_url: "", // ⭐ required for template image
   });
 
+  /* Fetch wholesale products */
   const { data: products = [], isLoading } = useQuery<Product[]>({
     queryKey: ["wholesaleProducts"],
     queryFn: fetchWholesaleProducts,
   });
 
+  /* Mutation to add product */
   const mutation = useMutation({
     mutationFn: addProductApi,
     onSuccess: () => {
       showSuccess("Wholesale product added!");
+
       setShowModal(false);
       setForm({
         name: "",
@@ -64,10 +98,17 @@ const WholesalerProductsPage: React.FC = () => {
         stock: 0,
         category: "fruits",
         delivery_time: 1,
+        product_type: "wholesale",
+        description: "",
+        image_url: "",
       });
-      queryClient.invalidateQueries(["wholesaleProducts"]);
+
+      queryClient.invalidateQueries({ queryKey: ["wholesaleProducts"] });
     },
-    onError: () => showError("Failed to add product"),
+    onError: (error: any) => {
+      console.error("Error adding product:", error);
+      showError(error.response?.data?.detail || "Failed to add product");
+    },
   });
 
   const myProducts = products.filter((p) => p.product_type === "wholesale");
@@ -79,6 +120,7 @@ const WholesalerProductsPage: React.FC = () => {
         <CartModal />
 
         <main className="max-w-6xl mx-auto p-6">
+          {/* HEADER */}
           <div className="flex items-center justify-between mb-6">
             <h1 className="text-3xl font-semibold tracking-wide">
               My Wholesale Products
@@ -97,7 +139,17 @@ const WholesalerProductsPage: React.FC = () => {
             {isLoading ? (
               <p className="text-slate-400">Loading products...</p>
             ) : myProducts.length === 0 ? (
-              <p className="text-slate-400">No wholesale products yet.</p>
+              <div className="glass-card p-8 text-center">
+                <p className="text-slate-300 text-lg mb-4">
+                  No wholesale products yet.
+                </p>
+                <button
+                  onClick={() => setShowModal(true)}
+                  className="px-4 py-2 rounded-lg bg-blue-700/60 hover:bg-blue-700 transition font-medium"
+                >
+                  Add Your First Product
+                </button>
+              </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-slate-800">
@@ -120,13 +172,8 @@ const WholesalerProductsPage: React.FC = () => {
 
                   <tbody className="divide-y divide-slate-800">
                     {myProducts.map((p) => (
-                      <tr
-                        key={p.id}
-                        className="hover:bg-slate-900/40 transition"
-                      >
-                        <td className="px-4 py-3 text-sm font-medium">
-                          {p.name}
-                        </td>
+                      <tr key={p.id} className="hover:bg-slate-900/40 transition">
+                        <td className="px-4 py-3 text-sm font-medium">{p.name}</td>
 
                         <td className="px-4 py-3">
                           <span
@@ -143,9 +190,7 @@ const WholesalerProductsPage: React.FC = () => {
                           ₹{p.price}
                         </td>
 
-                        <td className="px-4 py-3 text-right text-sm">
-                          {p.stock}
-                        </td>
+                        <td className="px-4 py-3 text-right text-sm">{p.stock}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -177,7 +222,7 @@ const WholesalerProductsPage: React.FC = () => {
                     onChange={(e) =>
                       setForm({ ...form, name: e.target.value })
                     }
-                    className="px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:ring-2 focus:ring-blue-600"
+                    className="px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white"
                     required
                   />
 
@@ -192,7 +237,7 @@ const WholesalerProductsPage: React.FC = () => {
                         delivery_time: newCat === "fruits" ? 1 : 3,
                       });
                     }}
-                    className="px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:ring-2 focus:ring-blue-600"
+                    className="px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white"
                   >
                     {(Object.entries(
                       ProductCategoryLabels
@@ -211,7 +256,7 @@ const WholesalerProductsPage: React.FC = () => {
                     onChange={(e) =>
                       setForm({ ...form, price: Number(e.target.value) })
                     }
-                    className="px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:ring-2 focus:ring-blue-600"
+                    className="px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white"
                     required
                   />
 
@@ -223,7 +268,7 @@ const WholesalerProductsPage: React.FC = () => {
                     onChange={(e) =>
                       setForm({ ...form, stock: Number(e.target.value) })
                     }
-                    className="px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:ring-2 focus:ring-blue-600"
+                    className="px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white"
                     required
                   />
 
@@ -236,7 +281,7 @@ const WholesalerProductsPage: React.FC = () => {
                         delivery_time: Number(e.target.value),
                       })
                     }
-                    className="px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:ring-2 focus:ring-blue-600"
+                    className="px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white"
                   >
                     {[1, 2, 3, 4, 5, 6, 7].map((d) => (
                       <option value={d} key={d}>
@@ -244,6 +289,31 @@ const WholesalerProductsPage: React.FC = () => {
                       </option>
                     ))}
                   </select>
+
+                  {/* ⭐ IMAGE SELECTOR */}
+                  <select
+                    value={form.image_url}
+                    onChange={(e) =>
+                      setForm({ ...form, image_url: e.target.value })
+                    }
+                    className="px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white"
+                  >
+                    <option value="">Choose image</option>
+                    {templateImages.map((img) => (
+                      <option key={img.path} value={img.path}>
+                        {img.label}
+                      </option>
+                    ))}
+                  </select>
+
+                  {/* IMAGE PREVIEW */}
+                  {form.image_url && (
+                    <img
+                      src={form.image_url}
+                      alt="Preview"
+                      className="w-28 h-28 mt-2 rounded-lg border border-slate-700 object-cover mx-auto"
+                    />
+                  )}
 
                   <div className="flex justify-end gap-3 pt-3">
                     <button

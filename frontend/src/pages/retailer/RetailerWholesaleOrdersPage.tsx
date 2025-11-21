@@ -3,6 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchMyWholesaleOrders } from "../../api/orders";
 import Navbar from "../../components/layout/Navbar";
 import ProtectedRoute from "../../routes/ProtectedRoute";
+import CountdownTimer from '../../components/common/CountdownTimer';
+import { addDays } from '../../utils/googleCalendar';
 
 const RetailerWholesaleOrdersPage = () => {
   const { data = [], isLoading } = useQuery({
@@ -57,7 +59,13 @@ const RetailerWholesaleOrdersPage = () => {
                         <td className="px-4 py-3 text-sm">₹{o.total_price}</td>
                         <td className="px-4 py-3 text-sm">{o.status}</td>
                         <td className="px-4 py-3 text-sm">
-                          {new Date(o.created_at).toLocaleString()}
+                          {new Date(o.created_at).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}
+                        </td>
+                        <td className="px-4 py-3 text-sm">
+                          <CountdownTimer
+                            targetDate={addDays(new Date(o.created_at), o.delivery_time || 3)}
+                            className="mt-1"
+                          />
                         </td>
                       </tr>
                     ))}

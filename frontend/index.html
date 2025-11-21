@@ -1,13 +1,38 @@
 <!doctype html>
 <html lang="en">
-  <head>
+
+<head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
-  </head>
-  <body>
+    <title>LiveMart - E-commerce Platform</title>
+
+    <script>
+        // This function will be called by the Google API client library when it's loaded and ready
+        function onGAPILoaded() {
+            // The purpose of this function is now just to exist globally
+            // The React hook (useGoogleApi) will use this function to start initialization.
+            console.log('Google API script loaded and global callback fired.');
+        }
+
+        // Add a global error handler for Google API loading (optional, but good practice)
+        function onGAPIError(error) {
+            console.error('Error loading Google API:', error);
+        }
+
+        // Set up the functions globally
+        window.onGAPILoaded = onGAPILoaded;
+        window.onGAPIError = onGAPIError;
+    </script>
+
+    <script async defer src="https://apis.google.com/js/api.js?onload=onGAPILoaded"></script>
+
+    <script src="https://accounts.google.com/gsi/client"></script>
+</head>
+
+<body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-  </body>
+</body>
+
 </html>
