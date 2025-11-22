@@ -7,4 +7,5 @@ class User(SQLModel, table=True):
     email: str = Field(index=True, unique=True)
     password_hash: str
     role: str  # "customer", "retailer", "wholesaler"
+    city : str
     is_verified: bool = Field(default=False, sa_column_kwargs={"server_default": "0"})

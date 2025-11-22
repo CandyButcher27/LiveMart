@@ -26,6 +26,20 @@ const templateImages = [
 ];
 
 /* -------------------------------------------
+   Cities list (same as Register Page)
+-------------------------------------------- */
+const Cities = [
+  "Delhi",
+  "Mumbai",
+  "Bengaluru",
+  "Chennai",
+  "Hyderabad",
+  "Kolkata",
+  "Pune",
+  "Ahmedabad",
+];
+
+/* -------------------------------------------
    API: Fetch Retailer's Own Products
 -------------------------------------------- */
 const fetchMyProducts = async (): Promise<Product[]> => {
@@ -57,15 +71,16 @@ const RetailerProductsPage: React.FC = () => {
 
   const [showModal, setShowModal] = useState(false);
 
-  // IMPORTANT: image_url is correctly included
+  // ⭐ ADD "city" to initial form state
   const [form, setForm] = useState<ProductCreate>({
     name: "",
     price: 0,
     stock: 0,
     category: "fruits",
     delivery_time: 1,
-    image_url: "", // <-- FIXED
+    image_url: "",
     description: "",
+    city: "",   // ⭐ NEW
   });
 
   const { data: products = [], isLoading } = useQuery({
@@ -81,6 +96,7 @@ const RetailerProductsPage: React.FC = () => {
     onSuccess: () => {
       showSuccess("Product added successfully!");
 
+      // Reset form after success
       setForm({
         name: "",
         price: 0,
@@ -89,6 +105,7 @@ const RetailerProductsPage: React.FC = () => {
         delivery_time: 1,
         image_url: "",
         description: "",
+        city: "",
       });
 
       setShowModal(false);
@@ -133,16 +150,22 @@ const RetailerProductsPage: React.FC = () => {
                 <table className="min-w-full rounded-xl overflow-hidden">
                   <thead>
                     <tr className="bg-slate-900/60 border-b border-slate-700">
-                      {["ID", "Name", "Category", "Price", "Stock", "Type"].map(
-                        (head) => (
-                          <th
-                            key={head}
-                            className="px-4 py-3 text-left text-sm text-slate-300"
-                          >
-                            {head}
-                          </th>
-                        )
-                      )}
+                      {[
+                        "ID",
+                        "Name",
+                        "Category",
+                        "Price",
+                        "Stock",
+                        "City",
+                        "Type",
+                      ].map((head) => (
+                        <th
+                          key={head}
+                          className="px-4 py-3 text-left text-sm text-slate-300"
+                        >
+                          {head}
+                        </th>
+                      ))}
                     </tr>
                   </thead>
 
@@ -150,14 +173,13 @@ const RetailerProductsPage: React.FC = () => {
                     {myProducts.map((p) => (
                       <tr key={p.id} className="hover:bg-slate-900/40 transition">
                         <td className="px-4 py-3 text-sm">{p.id}</td>
-                        <td className="px-4 py-3 text-sm font-medium">
-                          {p.name}
-                        </td>
+                        <td className="px-4 py-3 text-sm font-medium">{p.name}</td>
                         <td className="px-4 py-3 text-sm">
                           {ProductCategoryLabels[p.category]}
                         </td>
                         <td className="px-4 py-3 text-sm">₹{p.price}</td>
                         <td className="px-4 py-3 text-sm">{p.stock}</td>
+                        <td className="px-4 py-3 text-sm">{p.city}</td>
                         <td className="px-4 py-3 text-sm">{p.product_type}</td>
                       </tr>
                     ))}
@@ -215,13 +237,11 @@ const RetailerProductsPage: React.FC = () => {
                     }}
                     className="input bg-slate-900 border border-slate-700 text-white"
                   >
-                    {Object.entries(ProductCategoryLabels).map(
-                      ([value, label]) => (
-                        <option key={value} value={value}>
-                          {label}
-                        </option>
-                      )
-                    )}
+                    {Object.entries(ProductCategoryLabels).map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
                   </select>
 
                   <input
@@ -245,6 +265,23 @@ const RetailerProductsPage: React.FC = () => {
                     className="input bg-slate-900 border border-slate-700 text-white"
                     required
                   />
+
+                  {/* ⭐ NEW CITY DROPDOWN */}
+                  <select
+                    value={form.city}
+                    onChange={(e) =>
+                      setForm({ ...form, city: e.target.value })
+                    }
+                    className="input bg-slate-900 border border-slate-700 text-white"
+                    required
+                  >
+                    <option value="" disabled>Select Product City</option>
+                    {Cities.map((c) => (
+                      <option key={c} value={c} className="bg-slate-900">
+                        {c}
+                      </option>
+                    ))}
+                  </select>
 
                   <select
                     value={form.delivery_time}

@@ -1,13 +1,15 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { showSuccess, showError } from "../../utils/toast";
+
 import {
   requestLoginOTP,
   verifyLoginOTP,
   requestGoogleLoginOTP,
   verifyGoogleOTP,
 } from "../../api/auth";
+
 import { GoogleLoginButton } from "../../components/auth/GoogleLoginButton";
+import { showSuccess, showError } from "../../utils/toast";
 
 const LoginPage = () => {
   const [email, setEmail] = useState("");
@@ -18,9 +20,9 @@ const LoginPage = () => {
   const [error, setError] = useState("");
   const [isRequestingOTP, setIsRequestingOTP] = useState(false);
 
-  /* ------------------- HANDLERS ------------------- */
-
-  // Request OTP for normal login
+  /* -------------------------------------------------
+     REQUEST OTP (Normal login)
+  -------------------------------------------------- */
   const handleRequestOTP = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -39,46 +41,44 @@ const LoginPage = () => {
     }
   };
 
-  // Login with Google → OTP
+  /* -------------------------------------------------
+     GOOGLE LOGIN → triggers OTP
+  -------------------------------------------------- */
   const handleGoogleLogin = async (email: string, name: string) => {
     try {
       setLoading(true);
       setEmail(email);
       setError("");
 
-      const response = await requestGoogleLoginOTP(email, name);
-      if (response) {
-        setStep("otp");
-        showSuccess("OTP sent to your email!");
-      }
+      await requestGoogleLoginOTP(email, name);
+      setStep("otp");
+      showSuccess("OTP sent to your email!");
     } catch (err: any) {
       const detail =
-        err?.response?.data?.detail || "Failed to send OTP. Please try again.";
+        err?.response?.data?.detail || "Google login failed.";
       setError(detail);
       showError(detail);
-      throw err;
     } finally {
       setLoading(false);
     }
   };
 
-  // Verify OTP (Google or normal)
+  /* -------------------------------------------------
+     VERIFY OTP (normal or google)
+  -------------------------------------------------- */
   const handleVerifyOTP = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
+
     try {
       let response;
 
-      // Google login flow
       if (!password) {
+        // Google login
         response = await verifyGoogleOTP(email, otp);
-
-        if (!response?.access_token) {
-          throw new Error("Invalid server response");
-        }
       } else {
-        // Standard login flow
+        // Normal login
         response = await verifyLoginOTP({
           email,
           password,
@@ -87,25 +87,23 @@ const LoginPage = () => {
         });
       }
 
-      // Save credentials
+      if (!response?.access_token) throw new Error("Invalid server response");
+
+      // ⭐⭐⭐ SAVE EVERYTHING (IMPORTANT!)
       localStorage.setItem("livemart:token", response.access_token);
-      localStorage.setItem("livemart:role", response.role || "customer");
-      localStorage.setItem("livemart:email", response.email || email);
+      localStorage.setItem("livemart:role", response.role);
+      localStorage.setItem("livemart:email", response.email);
+      localStorage.setItem("livemart:city", response.city);
+      localStorage.setItem("user", JSON.stringify(response)); // FULL USER OBJECT
 
       showSuccess("Login successful! Redirecting...");
 
-      const validRoles = ["customer", "retailer", "wholesaler"];
-      const redirectPath = validRoles.includes(response.role)
-        ? `/${response.role}`
-        : "/";
-
       setTimeout(() => {
-        window.location.href = redirectPath;
-      }, 500);
+        window.location.href = `/${response.role}`;
+      }, 600);
     } catch (err: any) {
       const detail =
-        err?.response?.data?.detail ||
-        "Invalid OTP or credentials. Please try again.";
+        err?.response?.data?.detail || "OTP verification failed.";
       setError(detail);
       showError(detail);
     } finally {
@@ -113,40 +111,45 @@ const LoginPage = () => {
     }
   };
 
+  /* -------------------------------------------------
+     RESEND OTP
+  -------------------------------------------------- */
   const handleResendOTP = async () => {
     if (isRequestingOTP) return;
     setIsRequestingOTP(true);
 
     try {
       await requestLoginOTP(email);
-      showSuccess("New OTP sent to your email!");
-    } catch (err: any) {
+      showSuccess("New OTP sent!");
+    } catch {
       showError("Failed to resend OTP");
     } finally {
       setIsRequestingOTP(false);
     }
   };
 
-  /* ------------------- UI ------------------- */
-
   return (
     <div className="min-h-screen w-full flex flex-col md:flex-row bg-slate-950">
-      {/* LEFT GRADIENT PANEL */}
-      <div className="hidden md:flex md:w-1/2 items-center justify-center p-10 bg-gradient-to-br from-blue-700/70 via-purple-700/60 to-slate-900/80 backdrop-blur-xl shadow-xl">
+
+      {/* LEFT PANEL */}
+      <div className="hidden md:flex md:w-1/2 items-center justify-center p-10
+          bg-gradient-to-br from-blue-700/70 via-purple-700/60 to-slate-900/80
+          backdrop-blur-xl shadow-xl">
         <div className="max-w-md text-center space-y-4">
           <h1 className="text-5xl font-bold text-white drop-shadow-md">
             Welcome to LiveMART
           </h1>
           <p className="text-slate-200 text-lg">
-            Connecting <b>Customers</b>, <b>Retailers</b> & <b>Wholesalers</b> in
-            one ecosystem.
+            Customers • Retailers • Wholesalers united in one marketplace.
           </p>
         </div>
       </div>
 
-      {/* RIGHT FORM PANEL */}
+      {/* RIGHT PANEL */}
       <div className="flex-1 flex items-center justify-center p-8">
-        <div className="w-full max-w-md glass-card rounded-2xl p-8 border border-white/10 shadow-xl backdrop-blur-xl bg-white/5">
+        <div className="w-full max-w-md glass-card rounded-2xl p-8
+            border border-white/10 shadow-xl backdrop-blur-xl bg-white/5">
+
           <h2 className="text-3xl font-bold mb-2 text-white">
             {step === "email" ? "Sign in" : "Enter OTP"}
           </h2>
@@ -155,10 +158,7 @@ const LoginPage = () => {
             {step === "email" ? (
               <>
                 New user?{" "}
-                <Link
-                  to="/auth/register"
-                  className="text-blue-400 hover:underline"
-                >
+                <Link to="/auth/register" className="text-blue-400 hover:underline">
                   Create an account
                 </Link>
               </>
@@ -167,16 +167,16 @@ const LoginPage = () => {
             )}
           </p>
 
-          {/* ERROR UI */}
           {error && (
-            <div className="glass-card border border-red-500/40 bg-red-500/20 text-red-200 p-3 rounded-md mb-4 text-sm">
+            <div className="glass-card border border-red-500/40 bg-red-500/20
+              text-red-200 p-3 rounded-md mb-4 text-sm">
               {error}
             </div>
           )}
 
-          {/* STEP 1: EMAIL + PASSWORD */}
           {step === "email" ? (
             <form onSubmit={handleRequestOTP} className="space-y-5">
+
               <div>
                 <label className="text-slate-300 text-sm">Email</label>
                 <input
@@ -201,15 +201,10 @@ const LoginPage = () => {
                 />
               </div>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="btn-primary w-full"
-              >
+              <button type="submit" disabled={loading} className="btn-primary w-full">
                 {loading ? "Sending..." : "Send OTP"}
               </button>
 
-              {/* Divider */}
               <div className="relative my-4">
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-white/10"></div>
@@ -228,7 +223,6 @@ const LoginPage = () => {
               />
             </form>
           ) : (
-            /* STEP 2: OTP */
             <form onSubmit={handleVerifyOTP} className="space-y-5">
               <label className="text-slate-300 text-sm">Enter OTP</label>
 
@@ -244,6 +238,7 @@ const LoginPage = () => {
                   className="input-field flex-1 rounded-r-none"
                   placeholder="123456"
                 />
+
                 <button
                   type="button"
                   onClick={handleResendOTP}
@@ -273,6 +268,7 @@ const LoginPage = () => {
           )}
         </div>
       </div>
+
     </div>
   );
 };

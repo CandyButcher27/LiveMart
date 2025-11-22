@@ -6,6 +6,7 @@ class UserBase(BaseModel):
     name: str
     email: EmailStr
     role: str  # "customer", "retailer", "wholesaler"
+    city: str
 
 # ✅ Schema for creating a new user (includes password)
 class UserCreate(UserBase):

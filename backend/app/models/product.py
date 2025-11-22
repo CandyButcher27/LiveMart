@@ -9,6 +9,7 @@ class Product(SQLModel, table=True):
     stock: int = Field(default=0)
     category: str = Field(default="other")  # Product category
     delivery_time: int = Field(default=1, ge=1, le=7)  # Delivery time in days (1-7)
+    city : str = Field(nullable=False)
 
     # NEW FIELD (required for template images)
     image_url: Optional[str] = None

@@ -11,6 +11,7 @@ type FormData = {
   email: string;
   password: string;
   role: "customer" | "retailer" | "wholesaler";
+  city: string;
 };
 
 const RegisterPage: React.FC = () => {
@@ -27,6 +28,7 @@ const RegisterPage: React.FC = () => {
     email: "",
     password: "",
     role: "customer",
+    city: "",
   });
 
   /* ---------------------------------------------
@@ -63,6 +65,7 @@ const RegisterPage: React.FC = () => {
 
   const handleVerifyOTP = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (otp.length !== 6) {
       return setError("Enter a valid 6-digit OTP");
     }
@@ -77,6 +80,7 @@ const RegisterPage: React.FC = () => {
           email: form.email,
           password: form.password,
           role: form.role,
+          city: form.city,
         },
         otp
       );
@@ -142,15 +146,44 @@ const RegisterPage: React.FC = () => {
         className="input-field"
       />
 
+      {/* Role Selection */}
       <select
         name="role"
         value={form.role}
         onChange={handleChange}
-        className="input-field"
+        className="input-field bg-slate-800 text-white border border-slate-700 focus:border-blue-500"
+        required
       >
-        <option value="customer">Customer</option>
-        <option value="retailer">Retailer</option>
-        <option value="wholesaler">Wholesaler</option>
+        <option className="bg-slate-800 text-white" value="customer">
+          Customer
+        </option>
+        <option className="bg-slate-800 text-white" value="retailer">
+          Retailer
+        </option>
+        <option className="bg-slate-800 text-white" value="wholesaler">
+          Wholesaler
+        </option>
+      </select>
+
+      {/* City Selection */}
+      <select
+        name="city"
+        value={form.city}
+        onChange={handleChange}
+        className="input-field bg-slate-800 text-white border border-slate-700 focus:border-blue-500"
+        required
+      >
+        <option value="" className="bg-slate-800 text-white" disabled>
+          Select Your City
+        </option>
+        <option className="bg-slate-800 text-white" value="Delhi">Delhi</option>
+        <option className="bg-slate-800 text-white" value="Mumbai">Mumbai</option>
+        <option className="bg-slate-800 text-white" value="Bengaluru">Bengaluru</option>
+        <option className="bg-slate-800 text-white" value="Chennai">Chennai</option>
+        <option className="bg-slate-800 text-white" value="Hyderabad">Hyderabad</option>
+        <option className="bg-slate-800 text-white" value="Kolkata">Kolkata</option>
+        <option className="bg-slate-800 text-white" value="Pune">Pune</option>
+        <option className="bg-slate-800 text-white" value="Ahmedabad">Ahmedabad</option>
       </select>
 
       <button
@@ -215,6 +248,7 @@ const RegisterPage: React.FC = () => {
 
   return (
     <div className="min-h-screen grid grid-cols-1 md:grid-cols-2 bg-slate-950">
+      
       {/* LEFT PANEL */}
       <div className="hidden md:flex items-center justify-center p-10 bg-gradient-to-br from-purple-700/70 via-blue-700/60 to-slate-900/80 backdrop-blur-xl shadow-xl">
         <div className="max-w-md text-center space-y-4">
@@ -229,7 +263,7 @@ const RegisterPage: React.FC = () => {
         </div>
       </div>
 
-      {/* RIGHT FORM PANEL */}
+      {/* RIGHT PANEL */}
       <div className="flex items-center justify-center p-8">
         <div className="glass-card w-full max-w-md p-8 rounded-2xl">
           <h2 className="text-3xl font-bold text-white text-center mb-6">
@@ -252,6 +286,7 @@ const RegisterPage: React.FC = () => {
           </p>
         </div>
       </div>
+
     </div>
   );
 };

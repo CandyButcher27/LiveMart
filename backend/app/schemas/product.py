@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import Optional
 
-# 🧩 Base schema (shared across all product types)
+# 🧩 Base schema (shared across ProductCreate & ProductRead)
 class ProductBase(BaseModel):
     name: str
     description: str
@@ -12,13 +12,17 @@ class ProductBase(BaseModel):
         1, ge=1, le=7, description="Delivery time in days (1-7)"
     )
 
-    # ⭐ NEW FIELD — must be in base so both Create & Read inherit it
+    # ⭐ NEW FIELD — Image stored in frontend or Cloud
     image_url: Optional[str] = None
+
+    # ⭐ NEW FIELD — City where the product is located
+    city: str   # REQUIRED for all products (retail & wholesale)
 
 
 # ✅ Schema for creating a new product
 class ProductCreate(ProductBase):
-    pass  # owner_id and product_type are auto-set in the backend
+    pass
+    # owner_id & product_type are set automatically in backend
 
 
 # ✅ Schema for reading product data (response model)

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlmodel import Session, select
 
 from app.database import get_session
@@ -8,30 +8,25 @@ from app.utils.deps import get_current_user
 
 router = APIRouter()
 
-# 🧩 Add a new product (retailer or wholesaler)
+
+# ======================================================
+# CREATE PRODUCT
+# ======================================================
 @router.post("/", response_model=ProductRead)
 def add_product(
     product_data: ProductCreate,
     session: Session = Depends(get_session),
     user = Depends(get_current_user)
 ):
-    # Only retailers or wholesalers can add products
     if user["role"] not in ["retailer", "wholesaler"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only retailers or wholesalers can add products."
-        )
+        raise HTTPException(403, "Only retailers or wholesalers can add products.")
 
-    product_type = "retail" if user["role"] == "retailer" else "wholesale"
+    product_type = (
+        "retail" if user["role"] == "retailer" else "wholesale"
+    )
 
     product = Product(
-        name=product_data.name,
-        description=product_data.description,
-        price=product_data.price,
-        stock=product_data.stock,
-        category=product_data.category,
-        delivery_time=product_data.delivery_time,
-        image_url=product_data.image_url,   # ⭐ REQUIRED FIELD
+        **product_data.dict(),
         owner_id=user["id"],
         product_type=product_type
     )
@@ -39,84 +34,78 @@ def add_product(
     session.add(product)
     session.commit()
     session.refresh(product)
-
     return product
 
 
-# 🧩 Get all products (for debugging or admin)
-@router.get("/all", response_model=list[ProductRead])
-def get_all_products(session: Session = Depends(get_session)):
-    products = session.exec(select(Product)).all()
-    return products
-
-
-# 🧩 Get products (role-based filter)
+# ======================================================
+# GET ALL PRODUCTS BASED ON ROLE (Main endpoint)
+# ======================================================
 @router.get("/", response_model=list[ProductRead])
 def get_products(
     session: Session = Depends(get_session),
-    user = Depends(get_current_user)
+    user = Depends(get_current_user),
+    city: str | None = Query(None)
 ):
     role = user["role"]
 
-    # Customer → see only retail products
+    # Base query depending on user type
     if role == "customer":
-        products = session.exec(
-            select(Product).where(Product.product_type == "retail")
-        ).all()
+        query = select(Product).where(Product.product_type == "retail")
 
-    # Retailer → see wholesale products (posted by wholesalers)
     elif role == "retailer":
-        products = session.exec(
-            select(Product)
-            .where(Product.product_type == "wholesale")
-            .where(Product.owner_id != user["id"])
-        ).all()
-
-    # Wholesaler → see only their own products
-    elif role == "wholesaler":
-        products = session.exec(
-            select(Product).where(Product.owner_id == user["id"])
-        ).all()
-
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Invalid role"
+        query = select(Product).where(
+            (Product.product_type == "wholesale") &
+            (Product.owner_id != user["id"])
         )
 
+    elif role == "wholesaler":
+        query = select(Product).where(Product.owner_id == user["id"])
+
+    else:
+        raise HTTPException(403, "Invalid role")
+
+    # Apply optional city filter
+    if city:
+        query = query.where(Product.city == city)
+
+    products = session.exec(query).all()
     return products
 
 
-# 🧩 Get MY products (retailer only)
+# ======================================================
+# MY PRODUCTS (retailer only)
+# ======================================================
 @router.get("/my-products", response_model=list[ProductRead])
 def get_my_products(
     session: Session = Depends(get_session),
     user = Depends(get_current_user)
 ):
     if user["role"] != "retailer":
-        raise HTTPException(
-            status_code=403,
-            detail="Only retailers can view their own products."
-        )
+        raise HTTPException(403, "Only retailers can view their own products.")
 
-    products = session.exec(
-        select(Product)
-        .where(Product.owner_id == user["id"])
-        .where(Product.product_type == "retail")
-    ).all()
+    query = select(Product).where(
+        (Product.owner_id == user["id"]) &
+        (Product.product_type == "retail")
+    )
 
-    return products
+    return session.exec(query).all()
 
+
+# ======================================================
+# CUSTOMER → PROXY MODE (Wholesale visibility)
+# ======================================================
 @router.get("/proxy-wholesale", response_model=list[ProductRead])
 def get_wholesale_proxy(
     session: Session = Depends(get_session),
-    user=Depends(get_current_user)
+    user = Depends(get_current_user),
+    city: str | None = Query(None)
 ):
     if user["role"] != "customer":
-        raise HTTPException(status_code=403, detail="Only customers can use proxy mode")
+        raise HTTPException(403, "Only customers can use proxy mode")
 
-    products = session.exec(
-        select(Product).where(Product.product_type == "wholesale")
-    ).all()
+    query = select(Product).where(Product.product_type == "wholesale")
 
-    return products
+    if city:
+        query = query.where(Product.city == city)
+
+    return session.exec(query).all()

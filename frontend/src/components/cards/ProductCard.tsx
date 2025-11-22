@@ -10,15 +10,7 @@ import {
   getAverageRating,
 } from "../../api/ratings";
 
-// Hardcoded images
-const IMAGE_MAP: Record<string, string> = {
-  apple: "/product-images/apple.webp",
-  children: "/product-images/children.webp",
-  laptop: "/product-images/laptop.webp",
-  shoe: "/product-images/shoe.webp",
-};
-
-// fallback
+// fallback image
 const FALLBACK_IMAGE = "/product-images/default.webp";
 
 const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
@@ -33,7 +25,9 @@ const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
   const [hoverRating, setHoverRating] = useState(0);
   const [isRating, setIsRating] = useState(false);
 
-  /* Load Ratings */
+  /* --------------------------------------------------
+      LOAD RATINGS
+  -------------------------------------------------- */
   useEffect(() => {
     const loadRatings = async () => {
       try {
@@ -51,7 +45,9 @@ const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
     loadRatings();
   }, [product.id]);
 
-  /* Handle Rating */
+  /* --------------------------------------------------
+      HANDLE RATING
+  -------------------------------------------------- */
   const handleRating = async (rating: number) => {
     if (!isAuthenticated || !email) {
       showError("Please log in to rate products");
@@ -60,6 +56,7 @@ const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
 
     try {
       setIsRating(true);
+
       await rateProduct(product.id.toString(), email, rating);
 
       const updatedRatings = await getProductRatings(product.id.toString());
@@ -71,14 +68,16 @@ const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
       });
 
       showSuccess("Thank you for your rating!");
-    } catch (err) {
+    } catch {
       showError("Failed to submit rating");
     } finally {
       setIsRating(false);
     }
   };
 
-  /* Add to Cart */
+  /* --------------------------------------------------
+      ADD TO CART
+  -------------------------------------------------- */
   const handleAdd = () => {
     addToCart({
       id: product.id,
@@ -87,11 +86,12 @@ const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
       quantity: 1,
       type: "retail",
     });
-
     showSuccess(`${product.name} added to cart`);
   };
 
-  /* Rating Star UI */
+  /* --------------------------------------------------
+      RENDER STAR ICONS
+  -------------------------------------------------- */
   const renderStar = (index: number) => {
     const ratingValue = index + 1;
     const displayRating = hoverRating || ratings.rating;
@@ -131,16 +131,23 @@ const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
     );
   };
 
-  /* Hardcoded Image Matching */
-  const lower = product.name.toLowerCase();
+  /* --------------------------------------------------
+      FIXED IMAGE HANDLING
+  -------------------------------------------------- */
+
+  // If product.image_url is "/product-images/apple.webp", use it.
+  // If product.image_url is "product-images/apple.webp", add leading "/"
   let finalImage = FALLBACK_IMAGE;
 
-  if (lower.includes("apple")) finalImage = IMAGE_MAP.apple;
-  else if (lower.includes("shoe")) finalImage = IMAGE_MAP.shoe;
-  else if (lower.includes("children")) finalImage = IMAGE_MAP.children;
-  else if (lower.includes("laptop")) finalImage = IMAGE_MAP.laptop;
+  if (product.image_url) {
+    finalImage = product.image_url.startsWith("/")
+      ? product.image_url
+      : `/${product.image_url}`;
+  }
 
-  /* UI */
+  /* --------------------------------------------------
+      UI CARD
+  -------------------------------------------------- */
   return (
     <div className="bg-slate-900/70 backdrop-blur-md border border-slate-800 rounded-2xl p-4 flex flex-col shadow-xl hover:shadow-2xl hover:scale-[1.025] transition-all duration-200 h-full">
       
@@ -166,11 +173,12 @@ const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
         )}
       </div>
 
-      {/* NAME + DESCRIPTION */}
+      {/* NAME */}
       <h3 className="text-lg font-semibold text-white tracking-wide">
         {product.name}
       </h3>
 
+      {/* DESCRIPTION */}
       <p className="text-slate-400 text-sm line-clamp-2 mb-3">
         {product.description}
       </p>
@@ -197,7 +205,7 @@ const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
         </span>
       </div>
 
-      {/* ADD TO CART BUTTON */}
+      {/* ADD TO CART */}
       <button
         onClick={handleAdd}
         className="w-full mt-auto bg-gradient-to-r from-purple-600 to-blue-700 px-3 py-2 rounded-xl text-sm hover:brightness-110 transition-all shadow-lg"

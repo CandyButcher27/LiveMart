@@ -5,44 +5,55 @@ import { useProducts } from "../../api/products";
 import CartModal from "../../components/cart/CartModal";
 import { Link } from "react-router-dom";
 import Fuse from "fuse.js";
+import axiosInstance from "../../api/axiosInstance";
+import { showError } from "../../utils/toast";
 
 const CustomerDashboard: React.FC = () => {
   const { data: products = [], isLoading } = useProducts();
 
-  /* ---------------------------------------------
-      SEARCH & FILTER STATES
-  --------------------------------------------- */
+  /* -------------------------------------------------------
+     Load user city from login
+  -------------------------------------------------------- */
+  const userCity = localStorage.getItem("livemart:city") || "";
+
+  console.log("User city:", userCity);
+  console.log("Products returned:", products);
+
+  /* -------------------------------------------------------
+     UI states
+  -------------------------------------------------------- */
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [priceRange, setPriceRange] = useState([0, 20000]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [history, setHistory] = useState<string[]>([]);
 
-  /* ---------------------------------------------
-      SEARCH DEBOUNCE
-  --------------------------------------------- */
+  const [cityFilteredProducts, setCityFilteredProducts] = useState<any[] | null>(null);
+  const [cityLoading, setCityLoading] = useState(false);
+
+  /* -------------------------------------------------------
+     SEARCH DEBOUNCE
+  -------------------------------------------------------- */
   useEffect(() => {
     const t = setTimeout(() => {
       setDebouncedSearch(search);
 
       if (search.trim()) {
-        setHistory((prev) =>
-          [...new Set([search, ...prev])].slice(0, 5)
-        );
+        setHistory(prev => [...new Set([search, ...prev])].slice(0, 5));
       }
     }, 300);
 
     return () => clearTimeout(t);
   }, [search]);
 
-  /* ---------------------------------------------
-      CATEGORY LIST
-  --------------------------------------------- */
+  /* -------------------------------------------------------
+     FLATTEN CATEGORY LIST
+  -------------------------------------------------------- */
   const categories = Array.from(new Set(products.map((p) => p.category)));
 
-  /* ---------------------------------------------
-      FUZZY SEARCH ENGINE
-  --------------------------------------------- */
+  /* -------------------------------------------------------
+     FUZZY SEARCH ENGINE
+  -------------------------------------------------------- */
   const fuse = useMemo(
     () =>
       new Fuse(products, {
@@ -52,26 +63,60 @@ const CustomerDashboard: React.FC = () => {
     [products]
   );
 
-  /* ---------------------------------------------
-      FILTERING LOGIC
-  --------------------------------------------- */
-  const filteredProducts = useMemo(() => {
-    let results = products;
-
-    if (debouncedSearch) {
-      results = fuse.search(debouncedSearch).map((r) => r.item);
+  /* -------------------------------------------------------
+     APPLY CITY FILTER
+  -------------------------------------------------------- */
+  const applyCityFilter = async () => {
+    if (!userCity) {
+      showError("City info missing — please log in again.");
+      return;
     }
 
+    try {
+      setCityLoading(true);
+      const { data } = await axiosInstance.get(`/products?city=${userCity}`);
+      setCityFilteredProducts(data);
+    } catch {
+      showError("Failed to filter by city.");
+    } finally {
+      setCityLoading(false);
+    }
+  };
+
+  const clearCityFilter = () => setCityFilteredProducts(null);
+
+  /* -------------------------------------------------------
+     Choose base product list
+  -------------------------------------------------------- */
+  const baseProducts = cityFilteredProducts || products;
+
+  /* -------------------------------------------------------
+     FINAL FILTERING PIPELINE
+  -------------------------------------------------------- */
+  const filteredProducts = useMemo(() => {
+    let results = baseProducts;
+
+    // Fuzzy Search
+    if (debouncedSearch) {
+      const fuseInstance = new Fuse(baseProducts, {
+        keys: ["name", "description", "category"],
+        threshold: 0.3,
+      });
+      results = fuseInstance.search(debouncedSearch).map(r => r.item);
+    }
+
+    // Category Filter
     if (selectedCategory) {
       results = results.filter((p) => p.category === selectedCategory);
     }
 
+    // Price Filter
     results = results.filter(
       (p) => p.price >= priceRange[0] && p.price <= priceRange[1]
     );
 
     return results;
-  }, [debouncedSearch, selectedCategory, priceRange, fuse, products]);
+  }, [debouncedSearch, selectedCategory, priceRange, baseProducts]);
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
@@ -85,7 +130,6 @@ const CustomerDashboard: React.FC = () => {
           <h1 className="text-3xl font-bold tracking-wide">Explore Products</h1>
 
           <div className="flex gap-3">
-            {/* VIEW ORDERS */}
             <Link
               to="/customer/orders"
               className="px-4 py-2 rounded-xl bg-white/10 border border-white/20 
@@ -94,7 +138,6 @@ const CustomerDashboard: React.FC = () => {
               My Orders
             </Link>
 
-            {/* 🔥 PROXY MODE BUTTON (NEW) */}
             <Link
               to="/customer/proxy-wholesale"
               className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 
@@ -103,6 +146,27 @@ const CustomerDashboard: React.FC = () => {
               Proxy Wholesale Mode
             </Link>
           </div>
+        </div>
+
+        {/* CITY FILTER */}
+        <div className="flex gap-3 mb-6">
+          <button
+            onClick={applyCityFilter}
+            className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 
+            transition text-white shadow-md"
+          >
+            Search By City ({userCity || "Unknown"})
+          </button>
+
+          {cityFilteredProducts && (
+            <button
+              onClick={clearCityFilter}
+              className="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 
+              transition shadow-md"
+            >
+              Clear City Filter
+            </button>
+          )}
         </div>
 
         {/* SEARCH BAR */}
@@ -118,7 +182,7 @@ const CustomerDashboard: React.FC = () => {
           />
         </div>
 
-        {/* SEARCH HISTORY */}
+        {/* HISTORY */}
         {history.length > 0 && (
           <div className="flex gap-2 flex-wrap mb-5">
             {history.map((item, i) => (
@@ -134,7 +198,7 @@ const CustomerDashboard: React.FC = () => {
           </div>
         )}
 
-        {/* CATEGORIES */}
+        {/* CATEGORY FILTER */}
         <div className="flex gap-3 flex-wrap mb-8">
           <button
             onClick={() => setSelectedCategory(null)}
@@ -162,7 +226,7 @@ const CustomerDashboard: React.FC = () => {
           ))}
         </div>
 
-        {/* PRICE RANGE */}
+        {/* PRICE SLIDER */}
         <div className="glass-card p-4 rounded-2xl mb-10">
           <label className="block text-sm mb-2 text-slate-300">
             Price Range — ₹{priceRange[0]} to ₹{priceRange[1]}
@@ -178,8 +242,8 @@ const CustomerDashboard: React.FC = () => {
           />
         </div>
 
-        {/* PRODUCT LIST */}
-        {isLoading ? (
+        {/* PRODUCT GRID */}
+        {isLoading || cityLoading ? (
           <p className="text-center text-slate-400 mt-10 text-lg">
             Loading products…
           </p>
