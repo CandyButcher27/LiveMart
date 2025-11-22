@@ -1,5 +1,11 @@
-import { useEffect, useState } from 'react';
-import { initGoogleAPI, initGoogleIdentity } from './googleCalendar';
+import { useEffect, useState } from "react";
+import { initGoogleAPI, initGoogleIdentity } from "./googleCalendar";
+
+declare global {
+  interface Window {
+    gapiLoaded?: boolean;
+  }
+}
 
 export const useGoogleApi = () => {
   const [isGoogleApiReady, setIsGoogleApiReady] = useState(false);
@@ -8,36 +14,27 @@ export const useGoogleApi = () => {
   useEffect(() => {
     const initializeGoogleApis = async () => {
       try {
-        // Check if Google API is already loaded
+        // ⭐ Prevent multiple initializations
         if (window.gapiLoaded) {
-          await initGoogleAPI();
-          await initGoogleIdentity();
+          console.log("Google API already initialized — skipping");
           setIsGoogleApiReady(true);
           return;
         }
 
-        // Set up event listener for when Google API is loaded
-        const handleGapiLoaded = async () => {
-          try {
-            await initGoogleAPI();
-            await initGoogleIdentity();
-            setIsGoogleApiReady(true);
-          } catch (err) {
-            console.error('Error initializing Google APIs:', err);
-            setError(err instanceof Error ? err : new Error('Failed to initialize Google APIs'));
-          }
-        };
+        // ⭐ Mark as loaded BEFORE running
+        window.gapiLoaded = true;
 
-        // Add event listener
-        document.addEventListener('gapi-loaded', handleGapiLoaded);
+        console.log("Initializing Google API...");
 
-        // Cleanup
-        return () => {
-          document.removeEventListener('gapi-loaded', handleGapiLoaded);
-        };
+        await initGoogleAPI();
+        await initGoogleIdentity();
+
+        console.log("Google API initialization complete!");
+        setIsGoogleApiReady(true);
+
       } catch (err) {
-        console.error('Error setting up Google API listener:', err);
-        setError(err instanceof Error ? err : new Error('Failed to set up Google API listener'));
+        console.error("Google API initialization error:", err);
+        setError(err instanceof Error ? err : new Error("Google API init failed"));
       }
     };
 

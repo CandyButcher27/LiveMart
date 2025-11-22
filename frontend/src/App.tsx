@@ -22,6 +22,7 @@ import WholesalerProductsPage from "./pages/wholesaler/WholesalerProductsPage";
 import WholesalerOrdersPage from "./pages/wholesaler/WholesalerOrdersPage";
 
 import { AuthProvider } from "./contexts/AuthContext";
+import ProxyWholesalePage from "./pages/customer/ProxyWholeSalePage";
 
 function AppContent() {
   return (
@@ -81,7 +82,7 @@ function AppContent() {
           path="/customer/proxy-wholesale"
           element={
             <ProtectedRoute allowedRoles={["customer"]}>
-              <BuyWholeSalePage />
+              <ProxyWholesalePage />
             </ProtectedRoute>
           }
         />
